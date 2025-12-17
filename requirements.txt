@@ -1,4 +1,4 @@
 pandas
 geopandas
 plotly
-plotly
+openpyxl
