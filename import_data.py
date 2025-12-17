@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
+import numpy as np
 
 ss = st.session_state
 
@@ -18,6 +19,7 @@ def data_prep():
 def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
 
     scenarios, haul_dist, econ_fact, noise_gdf = data_prep()
+    noise_gdf['diff'] = noise_gdf['diff'] + (10 * np.log10(int(st.session_state.slots) / 478_000))
     SEGMENTS = [
         ("Passengers", "Short"), ("Passengers", "Medium"), ("Passengers", "Long"),
         ("Freight", "Short"), ("Freight", "Medium"), ("Freight", "Long"),
@@ -78,7 +80,7 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
         ("Freight", "Long"): haul_dist.loc['long haul cargo']['cargo_volume'],
     }
 
-    INDIRECT_MULT = 1.6 
+    INDIRECT_MULT = 1.9 
     slots = int(round(slots or 0)); freight_pct = int(round(freight_pct or 0)); short_pct = int(round(short_pct or 0)); medium_pct = int(round(medium_pct or 0))
     passengers_pct = max(0, 100 - freight_pct)
     long_pct = max(0, 100 - short_pct - medium_pct)

@@ -92,6 +92,7 @@ with left:
         long_pct=int(st.session_state.ui_long),
     )
     noise = data_prep()[3]
+    noise['diff'] = noise['diff'] + (10 * np.log10(int(st.session_state.slots) / 478_000))
     #fig_em_over = emissions_overview_fig(seg)
     fig_pax = pax_hist_fig(outputs['seg']) 
     cargo_pax = cargo_hist_fig(outputs['seg']) 

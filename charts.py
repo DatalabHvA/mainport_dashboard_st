@@ -97,7 +97,8 @@ def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "Lden_sim"):
         center=center,
         zoom=zoom,
         opacity=0.6,
-        color_continuous_scale=["green", "yellow", "orange", "red"],
+        color_continuous_scale=["green", "yellow",  "red"],
+        color_continuous_midpoint=0,
         hover_data=['aantalInwoners'],
     )
     fig.update_layout(margin=dict(l=10, r=10, t=40, b=10))
