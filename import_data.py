@@ -6,20 +6,6 @@ import numpy as np
 ss = st.session_state
 
 @st.cache_data
-def geluids_data_prep():
-    src = rasterio.open('data/sound_50m_rdnew.tif')
-    src2 = rasterio.open('data/sound_25aug_50m_rdnew.tif')
-    postcodes = gpd.read_file('data/postcodes.gpkg').to_crs(28992)[['postcode','aantalInwoners','geometry']]
-
-    df_zonal_stats = pd.DataFrame(zonal_stats(postcodes, src.read()[0], affine=src.meta['transform']))
-    df_zonal_stats2 = pd.DataFrame(zonal_stats(postcodes, src2.read()[0], affine=src.meta['transform'])).rename(columns = {'mean' : 'mean2','min' : 'min2','max': 'max2', 'count': 'count2'})
-
-    # adding statistics back to original GeoDataFrame
-    gdf2 = pd.concat([postcodes, df_zonal_stats, df_zonal_stats2], axis=1).dropna(subset = 'mean')
-    return gdf2
-
-
-@st.cache_data
 def data_prep():
     scenarios = pd.read_excel('data/scenarios.xlsx').set_index('scenario')
     haul_dist = pd.read_excel('data/haul_distributions.xlsx').set_index('type')
