@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-from rasterstats import zonal_stats
-import rasterio
-
 
 ss = st.session_state
 
