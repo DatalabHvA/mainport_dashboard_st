@@ -79,15 +79,15 @@ def scenario_defaults(path: str, slots: int, freight_share: float) -> dict:
         short_slots = (478_000*haul_distributions.loc['short haul pax']['base_slot_frac'] + 
             max(ss.slots - 478_000,0)*scenarios.loc[path]['short haul increase']/1000 + 
             max(478_000- ss.slots,0)*scenarios.loc[path]['short haul decrease']/1000) 
-        print(short_slots)
+        print('short slots', short_slots)
         medium_slots = (478_000*haul_distributions.loc['medium haul pax']['base_slot_frac'] + 
             max(ss.slots - 478_000,0)*scenarios.loc[path]['medium haul increase']/1000 + 
             max(478_000- ss.slots,0)*scenarios.loc[path]['medium haul decrease']/1000)
-        print(medium_slots)
+        print('medium slots', medium_slots)
         long_slots = (478_000*haul_distributions.loc['long haul pax']['base_slot_frac'] + 
             max(ss.slots - 478_000,0)*scenarios.loc[path]['long haul increase']/1000 + 
             max(478_000- ss.slots,0)*scenarios.loc[path]['long haul decrease']/1000)
-        print(long_slots)
+        print('long slots', long_slots)
         short = 100*short_slots/ss.slots
         medium = 100*medium_slots/ss.slots
         long = 100*long_slots/ss.slots
@@ -209,3 +209,71 @@ def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
     # weighted sum per row:
     Ew = E @ w
     return 10.0 * np.log10(Ew)
+
+def lden_from_haul_mix(
+    Lden_total: float,
+    N_short: float, N_med: float, N_long: float,
+    N_short_new: float, N_med_new: float, N_long_new: float,
+    dL_med_minus_short: float,
+    dL_long_minus_short: float,
+) -> float:
+    """
+    Reweight a measured total Lden when the slot mix over (short/medium/long haul) changes,
+    assuming:
+      - contributions add in energy
+      - per-flight sound per haul type is constant
+      - provided dL values represent per-flight Lden differences at this location
+
+    Parameters
+    ----------
+    Lden_total : float
+        Baseline measured total Lden [dB] at the location.
+    N_short, N_med, N_long : float
+        Baseline slot counts for short/medium/long.
+    N_short_new, N_med_new, N_long_new : float
+        New slot counts for short/medium/long.
+    dL_med_minus_short : float
+        Per-flight Lden difference (medium - short) [dB].
+    dL_long_minus_short : float
+        Per-flight Lden difference (long - short) [dB].
+
+    Returns
+    -------
+    float
+        New total Lden [dB].
+    """
+
+    # Per-flight energy ratios relative to short haul
+    rM = 10 ** (dL_med_minus_short / 10.0)
+    rL = 10 ** (dL_long_minus_short / 10.0)
+
+    # "Energy totals" up to a constant factor (cancels in ratio)
+    E_base = N_short + rM * N_med + rL * N_long
+    E_new  = N_short_new + rM * N_med_new + rL * N_long_new
+
+    if E_base <= 0 or E_new <= 0:
+        raise ValueError("Energy totals must be positive. Check slot counts and inputs.")
+
+    # New level = old level + 10 log10(E_new / E_base)
+    return float(Lden_total + 10.0 * np.log10(E_new / E_base))
+
+def delta_lden_from_haul_mix(
+    N_short: float, N_med: float, N_long: float,
+    N_short_new: float, N_med_new: float, N_long_new: float,
+    dL_med_minus_short: float = 0.2838603921484293,
+    dL_long_minus_short: float = 1.3974990345316523,
+) -> float:
+    """
+    Same as above but returns only the change in Lden (dB).
+    Useful if you want to apply it to many baseline levels.
+    """
+    rM = 10 ** (dL_med_minus_short / 10.0)
+    rL = 10 ** (dL_long_minus_short / 10.0)
+
+    E_base = N_short + rM * N_med + rL * N_long
+    E_new  = N_short_new + rM * N_med_new + rL * N_long_new
+
+    if E_base <= 0 or E_new <= 0:
+        raise ValueError("Energy totals must be positive. Check slot counts and inputs.")
+
+    return float(10.0 * np.log10(E_new / E_base))

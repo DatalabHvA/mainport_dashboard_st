@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import geopandas as gpd
 import json
-from functions_app import combine_lden_df_weighted
+from functions_app import combine_lden_df_weighted, lden_from_haul_mix
 
 ss = st.session_state
 
@@ -72,6 +72,15 @@ def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "Lden_sim"):
                                              cols = ['Lden_one','Lden_two'], 
                                              weights = [ss.runway_shares['Polderbaan'], ss.runway_shares['Kaagbaan']])
     gdf['scenario'] = gdf['scenario'] + 10*np.log10(ss.slots/478_000)
+    gdf['scenario'] = gdf['scenario'].apply(lambda x: lden_from_haul_mix(x, 
+                                        0.40*ss.slots,
+                                        0.35*ss.slots,
+                                        0.25*ss.slots,
+                                        ss.ui_short/100 * ss.slots, 
+                                        ss.ui_medium/100 * ss.slots, 
+                                        ss.ui_long/100 * ss.slots,
+                                        0.2838603921484293, 1.3974990345316523))                                        
+
     gdf['diff'] = gdf['scenario'] - gdf['normal']
 
     if color_col not in gdf.columns:

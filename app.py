@@ -24,7 +24,7 @@ with st.sidebar:
 
     st.number_input(
         "Number of slots",
-        min_value=0,
+        min_value=200000,
         step=10_000,
         key="slots",
         on_change=apply_path_defaults_to_ui,  # top input influences defaults lower down
@@ -51,7 +51,7 @@ with st.sidebar:
     locked = st.session_state.path != "Custom"
 
     # Sliders are bound to ui_* keys only
-    st.slider("Short-haul (%)", 0, 100, key="ui_short", disabled=locked)
+    st.slider("Short-haul (%)", 0, 99, key="ui_short", disabled=locked)
     st.slider("Medium-haul (%)", 0, 100 - int(st.session_state.ui_short), key="ui_medium", disabled=locked)
 
     if locked:
@@ -161,25 +161,25 @@ with left:
     c1, c2, c3 = st.columns([1.2, 1.2, 1.2], gap="small")
 
     with c1:
-        st.plotly_chart(fig_pax, use_container_width=True)
+        st.plotly_chart(fig_pax, width='stretch')
 
     with c2:
-        st.plotly_chart(cargo_pax, use_container_width=True)
+        st.plotly_chart(cargo_pax, width='stretch')
 
     with c3:
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, width='stretch')
 
     # Tabs with extra graphs
     tab1, tab2, tab3, tab4 = st.tabs(["Noise map (Lden)", "Added value", "Employment", "WGI"])
 
     with tab1:
-        st.plotly_chart(fig_noise, use_container_width=True)
+        st.plotly_chart(fig_noise, width='stretch')
 
     with tab2:
-        st.plotly_chart(fig_val, use_container_width=True)
+        st.plotly_chart(fig_val, width='stretch')
 
     with tab3:
-        st.plotly_chart(fig_emp, use_container_width=True)
+        st.plotly_chart(fig_emp, width='stretch')
     
     with tab4:
         fig = px.choropleth(
@@ -192,7 +192,7 @@ with left:
             height=600, margin=dict(l=10, r=10, t=30, b=10),
             coloraxis_colorbar=dict(title="Stabiliteit")
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 with right:
 
