@@ -1,8 +1,12 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import geopandas as gpd
 import json
+from functions_app import combine_lden_df_weighted
+
+ss = st.session_state
 
 def value_fig(seg: pd.DataFrame):
     if seg is None or seg.empty or "AddedValue" not in seg:
@@ -53,27 +57,20 @@ def cargo_hist_fig(seg: pd.DataFrame):
         )
     )
     return fig
+
 def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "Lden_sim"):
     """Create a choropleth from a GeoDataFrame with polygon geometry.
     Expects columns: geometry; and a numeric column to color by (default 'Lden_sim').
     If gdf is None or empty, return an empty placeholder figure.
     """
-    if gdf is None or len(gdf) == 0:
-        return px.choropleth_mapbox(pd.DataFrame(dict(dummy=[])), geojson={}, locations="dummy", mapbox_style="open-street-map", zoom=9, center=dict(lat=52.308, lon=4.764), opacity=0.6)
-
-    # Ensure we have a GeoDataFrame
-    if gpd is not None and not isinstance(gdf, gpd.GeoDataFrame):
-        try:
-            gdf = gpd.GeoDataFrame(gdf, geometry="geometry", crs=getattr(gdf, "crs", "EPSG:4326"))
-        except Exception:
-            pass
-
-    # Project to WGS84 for mapbox
-    if hasattr(gdf, "to_crs"):
-        try:
-            gdf = gdf.to_crs(4326)
-        except Exception:
-            pass
+    gdf['normal'] = combine_lden_df_weighted(df = gdf, 
+                                             cols = ['Lden_one','Lden_two'], 
+                                             weights = [0.5, 0.5])
+    
+    gdf['scenario'] = combine_lden_df_weighted(df = gdf, 
+                                             cols = ['Lden_one','Lden_two'], 
+                                             weights = [ss.runway_shares['Polderbaan'], ss.runway_shares['Kaagbaan']])
+    gdf['diff'] = gdf['scenario'] - gdf['normal']
 
     if color_col not in gdf.columns:
         # fall back to 'Lden' if available

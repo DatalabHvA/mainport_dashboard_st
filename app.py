@@ -14,6 +14,7 @@ ss = st.session_state
 # -----------------------------
 # App
 # -----------------------------
+
 ensure_defaults()
 css()
 
@@ -59,6 +60,35 @@ with st.sidebar:
         # enforce sum=100 in custom
         enforce_sum_100_custom()
         st.slider("Long-haul (%)", 0, 100, key="ui_long", disabled=True)
+
+    st.markdown("### Runway usage")
+
+    with st.form("runway_form", clear_on_submit=False):
+        st.caption("Set fractions per runway (will be normalised to sum to 1 on submit).")
+
+        # tijdelijke inputs (geen directe impact op model totdat je submit)
+        tmp = {}
+        for r in ss.RUNWAYS:
+            tmp[r] = st.number_input(
+                r,
+                min_value=0.0,
+                max_value=1.0,
+                step=0.01,
+                format="%.2f",
+                value=float(st.session_state.runway_shares.get(r, 0.0)),
+                key=f"tmp_runway_{r}",
+            )
+
+        submitted = st.form_submit_button("Apply runway shares")
+
+        if submitted:
+            new = normalize_shares(tmp, ss.RUNWAYS)
+
+            # schrijf genormaliseerde waarden terug
+            st.session_state.runway_shares = new
+
+            # 🔁 force rerun zodat de form opnieuw tekent met nieuwe defaults
+            st.rerun()
 
     st.button("Reset", on_click=reset_all)
 
@@ -121,9 +151,9 @@ with left:
     with r2[1]:
         kpi_card("Employment – indirect (jobs)", f"{outputs['jobs_indirect']:,}")
     with r2[2]:
-        kpi_card("Freight Cargo volume (million tons)", f"{outputs['total_cargo_freight']:.4f}")
+        kpi_card("Freight Cargo volume (M tons)", f"{outputs['total_cargo_freight']:.4f}")
     with r2[3]:
-        kpi_card("Belly Cargo volume (million tons)", f"{outputs['total_cargo_belly']:.3f}")
+        kpi_card("Belly Cargo volume (M tons)", f"{outputs['total_cargo_belly']:.3f}")
 
     st.markdown("")
 
@@ -140,7 +170,7 @@ with left:
         st.plotly_chart(fig_hist, use_container_width=True)
 
     # Tabs with extra graphs
-    tab1, tab2, tab3 = st.tabs(["Noise map (Lden)", "Added value", "Employment"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Noise map (Lden)", "Added value", "Employment", "WGI"])
 
     with tab1:
         st.plotly_chart(fig_noise, use_container_width=True)
@@ -150,6 +180,19 @@ with left:
 
     with tab3:
         st.plotly_chart(fig_emp, use_container_width=True)
+    
+    with tab4:
+        fig = px.choropleth(
+        ss.wgi_data, locations="iso3", color="governance_score",
+        color_continuous_scale=["#d62728", "#ffbf00", "#2ca02c"],  # red→yellow→green
+        range_color=(0, 1), projection="natural earth",
+        hover_name="country", hover_data={'iso3':False, "governance_score" : ':.2f'}
+        )
+        fig.update_layout(
+            height=600, margin=dict(l=10, r=10, t=30, b=10),
+            coloraxis_colorbar=dict(title="Stabiliteit")
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 with right:
 

@@ -1,6 +1,8 @@
 import streamlit as st
+import numpy as np
 import re
 from import_data import data_prep
+import pandas as pd
 
 ss = st.session_state
 
@@ -26,6 +28,35 @@ def ensure_defaults():
         st.session_state.ui_short = d0["short"]
         st.session_state.ui_medium = d0["medium"]
         st.session_state.ui_long = d0["long"]
+    
+    if "RUNWAYS" not in ss:
+        ss.RUNWAYS  = [
+            "Polderbaan",
+            "Zwanenburgbaan",
+            "Buitenveldertbaan",
+            "Oostbaan",
+            "Aalsmeerbaan",
+            "Kaagbaan",
+        ]
+
+    if "runway_shares" not in st.session_state:
+        # gelijke startverdeling
+        n = len(ss.RUNWAYS)
+        st.session_state.runway_shares = {r: 1.0 / n for r in ss.RUNWAYS}
+
+    if 'wgi_data' not in ss:
+        ss.wgi_data = pd.read_excel('data/wgi_governance_scores_2023_with_iso3.xlsx')
+
+def normalize_shares(shares, keys):
+    vals = np.array([max(0.0, shares[k]) for k in keys], dtype=float)
+    s = vals.sum()
+
+    if s <= 0:
+        vals[:] = 1.0 / len(vals)
+    else:
+        vals /= s
+
+    return dict(zip(keys, vals))
 
 def slugify(text: str) -> str:
     text = (text or "").strip().lower()
@@ -39,7 +70,7 @@ def clamp(x, lo, hi):
 def scenario_defaults(path: str, slots: int, freight_share: float) -> dict:
     """
     Return default haul shares based on path + top inputs.
-    This is demo logic — replace with your real rules.
+    This is demo logic — replace with real rules.
     """
     if path in ("Hub optimized", "OD optimized"):
         scenarios = data_prep()[0]
@@ -163,4 +194,18 @@ def reset_all():
     st.session_state.ui_short = d0["short"]
     st.session_state.ui_medium = d0["medium"]
     st.session_state.ui_long = d0["long"]
+    n = len(ss.RUNWAYS)
+    st.session_state.runway_shares = {r: 1.0 / n for r in ss.RUNWAYS}
 
+
+def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
+    w = np.asarray(weights, dtype=float)
+    if normalize_weights:
+        w = w / w.sum()
+
+    L = df[cols].to_numpy(dtype=np.float64, copy=False)   # shape (n_rows, n_cols)
+    # energy per cell:
+    E = 10.0 ** (L / 10.0)
+    # weighted sum per row:
+    Ew = E @ w
+    return 10.0 * np.log10(Ew)
