@@ -245,7 +245,7 @@ def reset_all():
             "Kaagbaan" : 3110
         }, ss.RUNWAYS)
     st.session_state["form_version"] += 1
-    st.rerun()
+    #st.rerun()
 
 
 def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
