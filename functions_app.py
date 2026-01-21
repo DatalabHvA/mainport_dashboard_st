@@ -38,7 +38,8 @@ def ensure_defaults():
     if 'econ_fact' not in ss: 
         ss.econ_fact = pd.read_excel('data/economische_factoren.xlsx').set_index('type')
 
-    st.session_state.setdefault("form_version", 0)
+    if 'form_version' not in ss:
+        ss.form_version = 0
 
     # UI haul keys
     if "ui_short" not in st.session_state or "ui_medium" not in st.session_state or "ui_long" not in st.session_state:
