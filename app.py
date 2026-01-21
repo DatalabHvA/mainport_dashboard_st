@@ -125,7 +125,7 @@ with left:
     fig_pax = pax_hist_fig(outputs['seg']) 
     cargo_pax = cargo_hist_fig(outputs['seg']) 
 
-    fig_noise = noise_choropleth_fig(ss.noise_gdf, color_col="diff") 
+    #fig_noise = noise_choropleth_fig(ss.noise_gdf, color_col="diff") 
     fig_hist = noise_hist_fig(ss.noise_gdf)
     fig_val = value_fig(outputs['seg'])
     fig_emp = employment_fig(outputs['seg'])
@@ -171,7 +171,12 @@ with left:
     tab1, tab2, tab3, tab4 = st.tabs(["Noise map (Lden)", "Added value", "Employment", "WGI"])
 
     with tab1:
-        st.plotly_chart(fig_noise, width='stretch')
+        st.radio(
+            "Color by",
+            options=["diff", "Lden"],
+            key='ui_sound'
+        )
+        st.plotly_chart(noise_choropleth_fig(ss.noise_gdf, color_col=ss.ui_sound), width='stretch')
 
     with tab2:
         st.plotly_chart(fig_val, width='stretch')

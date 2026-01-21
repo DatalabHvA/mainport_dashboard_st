@@ -63,6 +63,8 @@ def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "diff"):
     Expects columns: geometry; and a numeric column to color by (default 'Lden_sim').
     If gdf is None or empty, return an empty placeholder figure.
     """
+
+    gdf['Lden'] = gdf['scenario']
     
     if color_col not in gdf.columns:
         # fall back to 'Lden' if available
@@ -70,6 +72,7 @@ def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "diff"):
     if color_col is None:
         return px.choropleth_mapbox(pd.DataFrame(dict(dummy=[])), geojson={}, locations="dummy", mapbox_style="open-street-map", zoom=9, center=dict(lat=52.308, lon=4.764), opacity=0.6, color_continuous_scale=["red", "orange", "yellow", "green"])
 
+    midpoint = 0 if color_col == 'diff' else None
     # Plotly needs a feature id; we'll use the index
     gdf = gdf.reset_index(drop=True)
     gdf["fid"] = gdf.index.astype(str)
@@ -87,7 +90,7 @@ def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "diff"):
         zoom=zoom,
         opacity=0.6,
         color_continuous_scale=["green", "yellow",  "red"],
-        color_continuous_midpoint=0,
+        color_continuous_midpoint=midpoint,
         hover_data=['aantalInwoners'],
     )
     fig.update_layout(margin=dict(l=10, r=10, t=40, b=10))

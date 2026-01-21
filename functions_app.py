@@ -17,6 +17,9 @@ def ensure_defaults():
     if "slots" not in st.session_state:
         st.session_state.slots = 478_000
 
+    if "ui_sound" not in st.session_state:
+        st.session_state.ui_sound = 'diff'
+
     if "freight_share" not in st.session_state:
         st.session_state.freight_share = 5.0
 
@@ -34,12 +37,6 @@ def ensure_defaults():
     
     if 'econ_fact' not in ss: 
         ss.econ_fact = pd.read_excel('data/economische_factoren.xlsx').set_index('type')
-
-    if 'noise_gdf' not in ss:
-        ss.noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
-        ss.noise_gdf['normal'] = combine_lden_df_weighted(df = ss.noise_gdf, 
-                                             cols = ['Lden_one','Lden_two'], 
-                                             weights = [0.5, 0.5])
 
     # UI haul keys
     if "ui_short" not in st.session_state or "ui_medium" not in st.session_state or "ui_long" not in st.session_state:
@@ -60,9 +57,32 @@ def ensure_defaults():
 
     if "runway_shares" not in st.session_state:
         # gelijke startverdeling
-        n = len(ss.RUNWAYS)
-        st.session_state.runway_shares = {r: 1.0 / n for r in ss.RUNWAYS}
+        st.session_state.runway_shares = normalize_shares({
+            "Polderbaan" : 904,
+            "Zwanenburgbaan" : 1245,
+            "Buitenveldertbaan" : 1112,
+            "Oostbaan" : 276,
+            "Aalsmeerbaan" : 2098,
+            "Kaagbaan" : 4010
+        }, ss.RUNWAYS)
 
+    if 'noise_gdf' not in ss:
+        ss.noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
+        ss.noise_gdf['normal'] = combine_lden_df_weighted(df = ss.noise_gdf, 
+                                             cols = [
+                                                        "Lden_Polderbaan",
+                                                        "Lden_Zwanenburgbaan",
+                                                        "Lden_Buitenveldertbaan",
+                                                        "Lden_Oostbaan",
+                                                        "Lden_Aalsmeerbaan",
+                                                        "Lden_Kaagbaan",
+                                                    ], 
+                                             weights = [ss.runway_shares['Polderbaan'], 
+                                                        ss.runway_shares['Zwanenburgbaan'],
+                                                        ss.runway_shares['Buitenveldertbaan'],
+                                                        ss.runway_shares['Oostbaan'],
+                                                        ss.runway_shares['Aalsmeerbaan'],
+                                                        ss.runway_shares['Kaagbaan']])
 
 def normalize_shares(shares, keys):
     vals = np.array([max(0.0, shares[k]) for k in keys], dtype=float)
