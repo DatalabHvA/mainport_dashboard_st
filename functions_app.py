@@ -68,6 +68,7 @@ def ensure_defaults():
 
     if 'noise_gdf' not in ss:
         ss.noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
+        ss.noise_gdf['aantalInwoners'] = np.where(ss.noise_gdf['aantalInwoners'] < 0, 0, ss.noise_gdf['aantalInwoners'])
         ss.noise_gdf['normal'] = combine_lden_df_weighted(df = ss.noise_gdf, 
                                              cols = [
                                                         "Lden_Polderbaan",
@@ -83,6 +84,7 @@ def ensure_defaults():
                                                         ss.runway_shares['Oostbaan'],
                                                         ss.runway_shares['Aalsmeerbaan'],
                                                         ss.runway_shares['Kaagbaan']])
+        
 
 def normalize_shares(shares, keys):
     vals = np.array([max(0.0, shares[k]) for k in keys], dtype=float)
@@ -232,13 +234,28 @@ def reset_all():
     st.session_state.ui_medium = d0["medium"]
     st.session_state.ui_long = d0["long"]
     n = len(ss.RUNWAYS)
-    st.session_state.runway_shares = {r: 1.0 / n for r in ss.RUNWAYS}
+    st.session_state.runway_shares = normalize_shares({
+            "Polderbaan" : 904,
+            "Zwanenburgbaan" : 1245,
+            "Buitenveldertbaan" : 1112,
+            "Oostbaan" : 276,
+            "Aalsmeerbaan" : 2098,
+            "Kaagbaan" : 4010
+        }, ss.RUNWAYS)
 
 
 def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
     w = np.asarray(weights, dtype=float)
     if normalize_weights:
         w = w / w.sum()
+    
+    print(w)
+
+    reference = [904, 1245, 1112, 276, 2098, 4010]
+
+    w = [(sum([904, 1245, 1112, 276, 2098, 4010])/478_000)*weight*ss.slots/reference[i] for i, weight in enumerate(w)]
+
+    print(w)
 
     L = df[cols].to_numpy(dtype=np.float64, copy=False)   # shape (n_rows, n_cols)
     # energy per cell:
