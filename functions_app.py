@@ -1,8 +1,8 @@
 import streamlit as st
 import numpy as np
 import re
-from import_data import data_prep
 import pandas as pd
+import geopandas as gpd
 
 ss = st.session_state
 
@@ -22,6 +22,25 @@ def ensure_defaults():
 
     if "path" not in st.session_state:
         st.session_state.path = "Hub optimized"
+
+    if 'scenarios' not in ss: 
+        ss.scenarios = pd.read_excel('data/scenarios.xlsx').set_index('scenario')
+    
+    if 'wgi_data' not in ss:
+        ss.wgi_data = pd.read_excel('data/wgi_governance_scores_2023_with_iso3.xlsx')
+
+    if 'haul_dist' not in ss:
+        ss.haul_dist = pd.read_excel('data/haul_distributions.xlsx').set_index('type')
+    
+    if 'econ_fact' not in ss: 
+        ss.econ_fact = pd.read_excel('data/economische_factoren.xlsx').set_index('type')
+
+    if 'noise_gdf' not in ss:
+        ss.noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
+        ss.noise_gdf['normal'] = combine_lden_df_weighted(df = ss.noise_gdf, 
+                                             cols = ['Lden_one','Lden_two'], 
+                                             weights = [0.5, 0.5])
+
     # UI haul keys
     if "ui_short" not in st.session_state or "ui_medium" not in st.session_state or "ui_long" not in st.session_state:
         d0 = scenario_defaults(st.session_state.path, int(st.session_state.slots), float(st.session_state.freight_share))
@@ -44,8 +63,6 @@ def ensure_defaults():
         n = len(ss.RUNWAYS)
         st.session_state.runway_shares = {r: 1.0 / n for r in ss.RUNWAYS}
 
-    if 'wgi_data' not in ss:
-        ss.wgi_data = pd.read_excel('data/wgi_governance_scores_2023_with_iso3.xlsx')
 
 def normalize_shares(shares, keys):
     vals = np.array([max(0.0, shares[k]) for k in keys], dtype=float)
@@ -73,8 +90,8 @@ def scenario_defaults(path: str, slots: int, freight_share: float) -> dict:
     This is demo logic — replace with real rules.
     """
     if path in ("Hub optimized", "OD optimized"):
-        scenarios = data_prep()[0]
-        haul_distributions = data_prep()[1]
+        scenarios = ss.scenarios
+        haul_distributions = ss.haul_dist
 
         short_slots = (478_000*haul_distributions.loc['short haul pax']['base_slot_frac'] + 
             max(ss.slots - 478_000,0)*scenarios.loc[path]['short haul increase']/1000 + 
@@ -209,53 +226,6 @@ def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
     # weighted sum per row:
     Ew = E @ w
     return 10.0 * np.log10(Ew)
-
-def lden_from_haul_mix(
-    Lden_total: float,
-    N_short: float, N_med: float, N_long: float,
-    N_short_new: float, N_med_new: float, N_long_new: float,
-    dL_med_minus_short: float,
-    dL_long_minus_short: float,
-) -> float:
-    """
-    Reweight a measured total Lden when the slot mix over (short/medium/long haul) changes,
-    assuming:
-      - contributions add in energy
-      - per-flight sound per haul type is constant
-      - provided dL values represent per-flight Lden differences at this location
-
-    Parameters
-    ----------
-    Lden_total : float
-        Baseline measured total Lden [dB] at the location.
-    N_short, N_med, N_long : float
-        Baseline slot counts for short/medium/long.
-    N_short_new, N_med_new, N_long_new : float
-        New slot counts for short/medium/long.
-    dL_med_minus_short : float
-        Per-flight Lden difference (medium - short) [dB].
-    dL_long_minus_short : float
-        Per-flight Lden difference (long - short) [dB].
-
-    Returns
-    -------
-    float
-        New total Lden [dB].
-    """
-
-    # Per-flight energy ratios relative to short haul
-    rM = 10 ** (dL_med_minus_short / 10.0)
-    rL = 10 ** (dL_long_minus_short / 10.0)
-
-    # "Energy totals" up to a constant factor (cancels in ratio)
-    E_base = N_short + rM * N_med + rL * N_long
-    E_new  = N_short_new + rM * N_med_new + rL * N_long_new
-
-    if E_base <= 0 or E_new <= 0:
-        raise ValueError("Energy totals must be positive. Check slot counts and inputs.")
-
-    # New level = old level + 10 log10(E_new / E_base)
-    return float(Lden_total + 10.0 * np.log10(E_new / E_base))
 
 def delta_lden_from_haul_mix(
     N_short: float, N_med: float, N_long: float,

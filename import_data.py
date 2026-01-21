@@ -2,83 +2,85 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+from functions_app import combine_lden_df_weighted, delta_lden_from_haul_mix
 
 ss = st.session_state
 
-@st.cache_data
-def data_prep():
-    scenarios = pd.read_excel('data/scenarios.xlsx').set_index('scenario')
-    haul_dist = pd.read_excel('data/haul_distributions.xlsx').set_index('type')
-    econ_fact = pd.read_excel('data/economische_factoren.xlsx').set_index('type')
-
-    noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
-    noise_gdf['diff'] = noise_gdf['Lden_one'] - noise_gdf['Lden_two']
-
-    return(scenarios, haul_dist, econ_fact, noise_gdf)
-
-
 def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
 
-    scenarios, haul_dist, econ_fact, noise_gdf = data_prep()
-    noise_gdf['diff'] = noise_gdf['diff'] + (10 * np.log10(int(st.session_state.slots) / 478_000))
+    ss.noise_gdf['scenario'] = combine_lden_df_weighted(df = ss.noise_gdf, 
+                                             cols = ['Lden_one','Lden_two'], 
+                                             weights = [ss.runway_shares['Polderbaan'], ss.runway_shares['Kaagbaan']])
+    ss.noise_gdf['scenario'] = ss.noise_gdf['scenario'] + 10*np.log10(ss.slots/478_000)
+    delta_fleetmix = delta_lden_from_haul_mix(0.40*ss.slots,
+                                        0.35*slots,
+                                        0.25*slots,
+                                        short_pct/100 * slots, 
+                                        medium_pct/100 * slots, 
+                                        long_pct/100 * slots,
+                                        0.2838603921484293, 1.3974990345316523)
+    ss.noise_gdf['scenario'] = ss.noise_gdf['scenario'] + delta_fleetmix                                     
+
+    ss.noise_gdf['diff'] = ss.noise_gdf['scenario'] - ss.noise_gdf['normal']
+
     SEGMENTS = [
         ("Passengers", "Short"), ("Passengers", "Medium"), ("Passengers", "Long"),
         ("Freight", "Short"), ("Freight", "Medium"), ("Freight", "Long"),
     ]
 
-    HAUL_PAX = {"Short": haul_dist.loc['short haul pax']['num_passengers'], 
-                "Medium": haul_dist.loc['medium haul pax']['num_passengers'], 
-                "Long": haul_dist.loc['long haul pax']['num_passengers']}
+    HAUL_PAX = {"Short": ss.haul_dist.loc['short haul pax']['num_passengers'], 
+                "Medium": ss.haul_dist.loc['medium haul pax']['num_passengers'], 
+                "Long": ss.haul_dist.loc['long haul pax']['num_passengers']}
 
     ADDED_VALUE_PER_SLOT = {
-        ("Passengers", "Short"): haul_dist.loc['short haul pax']['num_passengers']*econ_fact.loc['pax']['added_value_schiphol'] + 
-        haul_dist.loc['short haul pax']['num_passengers']*haul_dist.loc['short haul pax']['frac_tourist']*econ_fact.loc['pax']['added_value_tourist'] + 
-        haul_dist.loc['short haul pax']['num_passengers']*haul_dist.loc['short haul pax']['frac_business']*econ_fact.loc['pax']['added_value_business'] + 
-        haul_dist.loc['short haul pax']['cargo_volume']*econ_fact.loc['cargo']['added_value_schiphol'], 
-        ("Passengers", "Medium"): haul_dist.loc['medium haul pax']['num_passengers']*econ_fact.loc['pax']['added_value_schiphol'] + 
-        haul_dist.loc['medium haul pax']['num_passengers']*haul_dist.loc['medium haul pax']['frac_tourist']*econ_fact.loc['pax']['added_value_tourist'] + 
-        haul_dist.loc['medium haul pax']['num_passengers']*haul_dist.loc['medium haul pax']['frac_business']*econ_fact.loc['pax']['added_value_business'] + 
-        haul_dist.loc['medium haul pax']['cargo_volume']*econ_fact.loc['cargo']['added_value_schiphol'], 
-        ("Passengers", "Long"): haul_dist.loc['long haul pax']['num_passengers']*econ_fact.loc['pax']['added_value_schiphol'] + 
-        haul_dist.loc['long haul pax']['num_passengers']*haul_dist.loc['long haul pax']['frac_tourist']*econ_fact.loc['pax']['added_value_tourist'] + 
-        haul_dist.loc['long haul pax']['num_passengers']*haul_dist.loc['long haul pax']['frac_business']*econ_fact.loc['pax']['added_value_business'] + 
-        haul_dist.loc['long haul pax']['cargo_volume']*econ_fact.loc['cargo']['added_value_schiphol'],
-        ("Freight", "Short"): haul_dist.loc['short haul cargo']['cargo_volume']*econ_fact.loc['cargo']['added_value_schiphol'], 
-        ("Freight", "Medium"):  haul_dist.loc['medium haul cargo']['cargo_volume']*econ_fact.loc['cargo']['added_value_schiphol'], 
-        ("Freight", "Long"):  haul_dist.loc['long haul cargo']['cargo_volume']*econ_fact.loc['cargo']['added_value_schiphol'],
+        ("Passengers", "Short"): ss.haul_dist.loc['short haul pax']['num_passengers']*ss.econ_fact.loc['pax']['added_value_schiphol'] + 
+        ss.haul_dist.loc['short haul pax']['num_passengers']*ss.haul_dist.loc['short haul pax']['frac_tourist']*ss.econ_fact.loc['pax']['added_value_tourist'] + 
+        ss.haul_dist.loc['short haul pax']['num_passengers']*ss.haul_dist.loc['short haul pax']['frac_business']*ss.econ_fact.loc['pax']['added_value_business'] + 
+        ss.haul_dist.loc['short haul pax']['cargo_volume']*ss.econ_fact.loc['cargo']['added_value_schiphol'], 
+        ("Passengers", "Medium"): ss.haul_dist.loc['medium haul pax']['num_passengers']*ss.econ_fact.loc['pax']['added_value_schiphol'] + 
+        ss.haul_dist.loc['medium haul pax']['num_passengers']*ss.haul_dist.loc['medium haul pax']['frac_tourist']*ss.econ_fact.loc['pax']['added_value_tourist'] + 
+        ss.haul_dist.loc['medium haul pax']['num_passengers']*ss.haul_dist.loc['medium haul pax']['frac_business']*ss.econ_fact.loc['pax']['added_value_business'] + 
+        ss.haul_dist.loc['medium haul pax']['cargo_volume']*ss.econ_fact.loc['cargo']['added_value_schiphol'], 
+        ("Passengers", "Long"): ss.haul_dist.loc['long haul pax']['num_passengers']*ss.econ_fact.loc['pax']['added_value_schiphol'] + 
+        ss.haul_dist.loc['long haul pax']['num_passengers']*ss.haul_dist.loc['long haul pax']['frac_tourist']*ss.econ_fact.loc['pax']['added_value_tourist'] + 
+        ss.haul_dist.loc['long haul pax']['num_passengers']*ss.haul_dist.loc['long haul pax']['frac_business']*ss.econ_fact.loc['pax']['added_value_business'] + 
+        ss.haul_dist.loc['long haul pax']['cargo_volume']*ss.econ_fact.loc['cargo']['added_value_schiphol'],
+        ("Freight", "Short"): ss.haul_dist.loc['short haul cargo']['cargo_volume']*ss.econ_fact.loc['cargo']['added_value_schiphol'], 
+        ("Freight", "Medium"):  ss.haul_dist.loc['medium haul cargo']['cargo_volume']*ss.econ_fact.loc['cargo']['added_value_schiphol'], 
+        ("Freight", "Long"):  ss.haul_dist.loc['long haul cargo']['cargo_volume']*ss.econ_fact.loc['cargo']['added_value_schiphol'],
     }
     EMPLOYMENT_PER_SLOT = {
-        ("Passengers", "Short"): haul_dist.loc['short haul pax']['num_passengers']*econ_fact.loc['pax']['employment_schiphol'] + 
-        haul_dist.loc['short haul pax']['num_passengers']*haul_dist.loc['short haul pax']['frac_tourist']*econ_fact.loc['pax']['employment_tourist'] + 
-        haul_dist.loc['short haul pax']['num_passengers']*haul_dist.loc['short haul pax']['frac_business']*econ_fact.loc['pax']['employment_business'] + 
-        haul_dist.loc['short haul pax']['cargo_volume']*econ_fact.loc['cargo']['employment_schiphol'], 
-        ("Passengers", "Medium"): haul_dist.loc['medium haul pax']['num_passengers']*econ_fact.loc['pax']['employment_schiphol'] + 
-        haul_dist.loc['medium haul pax']['num_passengers']*haul_dist.loc['medium haul pax']['frac_tourist']*econ_fact.loc['pax']['employment_tourist'] + 
-        haul_dist.loc['medium haul pax']['num_passengers']*haul_dist.loc['medium haul pax']['frac_business']*econ_fact.loc['pax']['employment_business'] + 
-        haul_dist.loc['medium haul pax']['cargo_volume']*econ_fact.loc['cargo']['employment_schiphol'], 
-        ("Passengers", "Long"): haul_dist.loc['long haul pax']['num_passengers']*econ_fact.loc['pax']['employment_schiphol'] + 
-        haul_dist.loc['long haul pax']['num_passengers']*haul_dist.loc['long haul pax']['frac_tourist']*econ_fact.loc['pax']['employment_tourist'] + 
-        haul_dist.loc['long haul pax']['num_passengers']*haul_dist.loc['long haul pax']['frac_business']*econ_fact.loc['pax']['employment_business'] + 
-        haul_dist.loc['long haul pax']['cargo_volume']*econ_fact.loc['cargo']['employment_schiphol'],
-        ("Freight", "Short"): haul_dist.loc['short haul cargo']['cargo_volume']*econ_fact.loc['cargo']['employment_schiphol'], 
-        ("Freight", "Medium"): haul_dist.loc['medium haul cargo']['cargo_volume']*econ_fact.loc['cargo']['employment_schiphol'], 
-        ("Freight", "Long"): haul_dist.loc['long haul cargo']['cargo_volume']*econ_fact.loc['cargo']['employment_schiphol'],
+        ("Passengers", "Short"): ss.haul_dist.loc['short haul pax']['num_passengers']*ss.econ_fact.loc['pax']['employment_schiphol'] + 
+        ss.haul_dist.loc['short haul pax']['num_passengers']*ss.haul_dist.loc['short haul pax']['frac_tourist']*ss.econ_fact.loc['pax']['employment_tourist'] + 
+        ss.haul_dist.loc['short haul pax']['num_passengers']*ss.haul_dist.loc['short haul pax']['frac_business']*ss.econ_fact.loc['pax']['employment_business'] + 
+        ss.haul_dist.loc['short haul pax']['cargo_volume']*ss.econ_fact.loc['cargo']['employment_schiphol'], 
+        ("Passengers", "Medium"): ss.haul_dist.loc['medium haul pax']['num_passengers']*ss.econ_fact.loc['pax']['employment_schiphol'] + 
+        ss.haul_dist.loc['medium haul pax']['num_passengers']*ss.haul_dist.loc['medium haul pax']['frac_tourist']*ss.econ_fact.loc['pax']['employment_tourist'] + 
+        ss.haul_dist.loc['medium haul pax']['num_passengers']*ss.haul_dist.loc['medium haul pax']['frac_business']*ss.econ_fact.loc['pax']['employment_business'] + 
+        ss.haul_dist.loc['medium haul pax']['cargo_volume']*ss.econ_fact.loc['cargo']['employment_schiphol'], 
+        ("Passengers", "Long"): ss.haul_dist.loc['long haul pax']['num_passengers']*ss.econ_fact.loc['pax']['employment_schiphol'] + 
+        ss.haul_dist.loc['long haul pax']['num_passengers']*ss.haul_dist.loc['long haul pax']['frac_tourist']*ss.econ_fact.loc['pax']['employment_tourist'] + 
+        ss.haul_dist.loc['long haul pax']['num_passengers']*ss.haul_dist.loc['long haul pax']['frac_business']*ss.econ_fact.loc['pax']['employment_business'] + 
+        ss.haul_dist.loc['long haul pax']['cargo_volume']*ss.econ_fact.loc['cargo']['employment_schiphol'],
+        ("Freight", "Short"): ss.haul_dist.loc['short haul cargo']['cargo_volume']*ss.econ_fact.loc['cargo']['employment_schiphol'], 
+        ("Freight", "Medium"): ss.haul_dist.loc['medium haul cargo']['cargo_volume']*ss.econ_fact.loc['cargo']['employment_schiphol'], 
+        ("Freight", "Long"): ss.haul_dist.loc['long haul cargo']['cargo_volume']*ss.econ_fact.loc['cargo']['employment_schiphol'],
     }
     PAX_PER_SLOT = {
-        ("Passengers", "Short"): haul_dist.loc['short haul pax']['num_passengers'], 
-        ("Passengers", "Medium"): haul_dist.loc['medium haul pax']['num_passengers'], 
-        ("Passengers", "Long"): haul_dist.loc['long haul pax']['num_passengers'],
+        ("Passengers", "Short"): ss.haul_dist.loc['short haul pax']['num_passengers'], 
+        ("Passengers", "Medium"): ss.haul_dist.loc['medium haul pax']['num_passengers'], 
+        ("Passengers", "Long"): ss.haul_dist.loc['long haul pax']['num_passengers'],
         ("Freight", "Short"): 0, 
         ("Freight", "Medium"): 0, 
         ("Freight", "Long"): 0,
     }
     CARGO_PER_SLOT = {
-        ("Passengers", "Short"): haul_dist.loc['short haul pax']['cargo_volume'], 
-        ("Passengers", "Medium"): haul_dist.loc['medium haul pax']['cargo_volume'], 
-        ("Passengers", "Long"): haul_dist.loc['long haul pax']['cargo_volume'],
-        ("Freight", "Short"): haul_dist.loc['short haul cargo']['cargo_volume'], 
-        ("Freight", "Medium"): haul_dist.loc['medium haul cargo']['cargo_volume'], 
-        ("Freight", "Long"): haul_dist.loc['long haul cargo']['cargo_volume'],
+        ("Passengers", "Short"): ss.haul_dist.loc['short haul pax']['cargo_volume'], 
+        ("Passengers", "Medium"): ss.haul_dist.loc['medium haul pax']['cargo_volume'], 
+        ("Passengers", "Long"): ss.haul_dist.loc['long haul pax']['cargo_volume'],
+        ("Freight", "Short"): ss.haul_dist.loc['short haul cargo']['cargo_volume'], 
+        ("Freight", "Medium"): ss.haul_dist.loc['medium haul cargo']['cargo_volume'], 
+        ("Freight", "Long"): ss.haul_dist.loc['long haul cargo']['cargo_volume'],
     }
 
     INDIRECT_MULT = 1.9 
@@ -117,16 +119,8 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
         df.sort_values("AddedValue", ascending=False, inplace=True)
 
     # Choropleth path: if NOISE_GDF is provided, create a simulated Lden column responsive to scenario
-    if noise_gdf is not None:
-        noise_gdf = noise_gdf.copy()
-        base_col = "diff"
-        # scale around baseline: make a gentle 0-centered adjustment factor
-        # normalizer based on default slots
-        #default_slots = DEFAULTS["slots"]
-        #scale = (noise_intensity / max(1.0, default_slots))
-        # create simulated column used by the choropleth
-        # KPI computation (households above threshold)
-        homes_affected = int(noise_gdf.loc[noise_gdf["diff"] < -1]['aantalInwoners'].sum())
+    if ss.noise_gdf is not None:
+        homes_affected = int(ss.noise_gdf.loc[ss.noise_gdf["diff"] < -1]['aantalInwoners'].sum())
     else:
         # Fallback: no polygons; KPI 0 so user knows to load polygons
         homes_affected = 0
@@ -134,17 +128,17 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
     va_indirect = total_va_direct * (INDIRECT_MULT-1)
     jobs_indirect = int(total_jobs_direct * (INDIRECT_MULT-1))
 
-    total_cargo_freight = (slots*(freight_pct*short_pct/10000)*haul_dist.loc['short haul cargo']['cargo_volume'] + 
-                   slots*(freight_pct*medium_pct/10000)*haul_dist.loc['medium haul cargo']['cargo_volume'] + 
-                   slots*(freight_pct*(100-(short_pct+medium_pct))/10000)*haul_dist.loc['long haul cargo']['cargo_volume'])
+    total_cargo_freight = (slots*(freight_pct*short_pct/10000)*ss.haul_dist.loc['short haul cargo']['cargo_volume'] + 
+                   slots*(freight_pct*medium_pct/10000)*ss.haul_dist.loc['medium haul cargo']['cargo_volume'] + 
+                   slots*(freight_pct*(100-(short_pct+medium_pct))/10000)*ss.haul_dist.loc['long haul cargo']['cargo_volume'])
     total_cargo_belly = ( +
-                   slots*((100-freight_pct)*short_pct/10000)*haul_dist.loc['short haul pax']['cargo_volume'] + 
-                   slots*((100-freight_pct)*medium_pct/10000)*haul_dist.loc['medium haul pax']['cargo_volume'] + 
-                   slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*haul_dist.loc['long haul pax']['cargo_volume'])
+                   slots*((100-freight_pct)*short_pct/10000)*ss.haul_dist.loc['short haul pax']['cargo_volume'] + 
+                   slots*((100-freight_pct)*medium_pct/10000)*ss.haul_dist.loc['medium haul pax']['cargo_volume'] + 
+                   slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*ss.haul_dist.loc['long haul pax']['cargo_volume'])
     
-    total_pax = (slots*((100-freight_pct)*short_pct/10000)*haul_dist.loc['short haul pax']['num_passengers'] + 
-                   slots*((100-freight_pct)*medium_pct/10000)*haul_dist.loc['medium haul pax']['num_passengers'] + 
-                   slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*haul_dist.loc['long haul pax']['num_passengers'] 
+    total_pax = (slots*((100-freight_pct)*short_pct/10000)*ss.haul_dist.loc['short haul pax']['num_passengers'] + 
+                   slots*((100-freight_pct)*medium_pct/10000)*ss.haul_dist.loc['medium haul pax']['num_passengers'] + 
+                   slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*ss.haul_dist.loc['long haul pax']['num_passengers'] 
     )
     return dict(
         long_pct=long_pct,
@@ -154,7 +148,6 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
         va_indirect=va_indirect/1000000,
         jobs_direct=int(total_jobs_direct),
         jobs_indirect=jobs_indirect,
-        noise_gdf=noise_gdf,
         total_cargo_freight  = total_cargo_freight/1000000,
         total_cargo_belly =  total_cargo_belly/1000000,
         total_pax = total_pax/1000000

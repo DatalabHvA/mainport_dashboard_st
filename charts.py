@@ -5,7 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import geopandas as gpd
 import json
-from functions_app import combine_lden_df_weighted, lden_from_haul_mix
 
 ss = st.session_state
 
@@ -59,30 +58,12 @@ def cargo_hist_fig(seg: pd.DataFrame):
     )
     return fig
 
-def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "Lden_sim"):
+def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "diff"):
     """Create a choropleth from a GeoDataFrame with polygon geometry.
     Expects columns: geometry; and a numeric column to color by (default 'Lden_sim').
     If gdf is None or empty, return an empty placeholder figure.
     """
-    gdf['normal'] = combine_lden_df_weighted(df = gdf, 
-                                             cols = ['Lden_one','Lden_two'], 
-                                             weights = [0.5, 0.5])
     
-    gdf['scenario'] = combine_lden_df_weighted(df = gdf, 
-                                             cols = ['Lden_one','Lden_two'], 
-                                             weights = [ss.runway_shares['Polderbaan'], ss.runway_shares['Kaagbaan']])
-    gdf['scenario'] = gdf['scenario'] + 10*np.log10(ss.slots/478_000)
-    gdf['scenario'] = gdf['scenario'].apply(lambda x: lden_from_haul_mix(x, 
-                                        0.40*ss.slots,
-                                        0.35*ss.slots,
-                                        0.25*ss.slots,
-                                        ss.ui_short/100 * ss.slots, 
-                                        ss.ui_medium/100 * ss.slots, 
-                                        ss.ui_long/100 * ss.slots,
-                                        0.2838603921484293, 1.3974990345316523))                                        
-
-    gdf['diff'] = gdf['scenario'] - gdf['normal']
-
     if color_col not in gdf.columns:
         # fall back to 'Lden' if available
         color_col = "diff" if "diff" in gdf.columns else None
