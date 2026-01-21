@@ -23,7 +23,7 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
                                                         ss.runway_shares['Oostbaan'],
                                                         ss.runway_shares['Aalsmeerbaan'],
                                                         ss.runway_shares['Kaagbaan']])
-    ss.noise_gdf['scenario'] = ss.noise_gdf['scenario'] + 10*np.log10(ss.slots/478_000)
+    #ss.noise_gdf['scenario'] = ss.noise_gdf['scenario'] + 10*np.log10(ss.slots/478_000)
     delta_fleetmix = delta_lden_from_haul_mix(0.40*ss.slots,
                                         0.35*slots,
                                         0.25*slots,
