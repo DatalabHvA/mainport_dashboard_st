@@ -58,12 +58,12 @@ def ensure_defaults():
     if "runway_shares" not in st.session_state:
         # gelijke startverdeling
         st.session_state.runway_shares = normalize_shares({
-            "Polderbaan" : 904,
-            "Zwanenburgbaan" : 1245,
-            "Buitenveldertbaan" : 1112,
-            "Oostbaan" : 276,
-            "Aalsmeerbaan" : 2098,
-            "Kaagbaan" : 4010
+            "Polderbaan" : 763,
+            "Zwanenburgbaan" : 2058,
+            "Buitenveldertbaan" : 1944,
+            "Oostbaan" : 467,
+            "Aalsmeerbaan" : 1322,
+            "Kaagbaan" : 3110
         }, ss.RUNWAYS)
 
     if 'noise_gdf' not in ss:
@@ -235,12 +235,12 @@ def reset_all():
     st.session_state.ui_long = d0["long"]
     n = len(ss.RUNWAYS)
     st.session_state.runway_shares = normalize_shares({
-            "Polderbaan" : 904,
-            "Zwanenburgbaan" : 1245,
-            "Buitenveldertbaan" : 1112,
-            "Oostbaan" : 276,
-            "Aalsmeerbaan" : 2098,
-            "Kaagbaan" : 4010
+            "Polderbaan" : 763,
+            "Zwanenburgbaan" : 2058,
+            "Buitenveldertbaan" : 1944,
+            "Oostbaan" : 467,
+            "Aalsmeerbaan" : 1322,
+            "Kaagbaan" : 3110
         }, ss.RUNWAYS)
 
 
@@ -251,9 +251,9 @@ def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
     
     print(w)
 
-    reference = [904, 1245, 1112, 276, 2098, 4010]
+    reference = [763, 2058, 1944, 467, 1322, 3110]
 
-    w = [(sum([904, 1245, 1112, 276, 2098, 4010])/478_000)*weight*ss.slots/reference[i] for i, weight in enumerate(w)]
+    w = [(sum([763, 2058, 1944, 467, 1322, 3110])/478_000)*weight*ss.slots/reference[i] for i, weight in enumerate(w)]
 
     print(w)
 
