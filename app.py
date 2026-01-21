@@ -63,7 +63,7 @@ with st.sidebar:
 
     st.markdown("### Runway usage")
 
-    with st.form("runway_form", clear_on_submit=False):
+    with st.form(key=f"slots_form_v{st.session_state['form_version']}"):
         st.caption("Set fractions per runway (will be normalised to sum to 1 on submit).")
 
         # tijdelijke inputs (geen directe impact op model totdat je submit)
@@ -83,9 +83,9 @@ with st.sidebar:
 
         if submitted:
             new = normalize_shares(tmp, ss.RUNWAYS)
-
             # schrijf genormaliseerde waarden terug
             st.session_state.runway_shares = new
+            st.session_state["form_version"] += 1
 
             # 🔁 force rerun zodat de form opnieuw tekent met nieuwe defaults
             st.rerun()

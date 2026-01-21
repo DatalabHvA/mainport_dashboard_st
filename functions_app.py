@@ -38,6 +38,8 @@ def ensure_defaults():
     if 'econ_fact' not in ss: 
         ss.econ_fact = pd.read_excel('data/economische_factoren.xlsx').set_index('type')
 
+    st.session_state.setdefault("form_version", 0)
+
     # UI haul keys
     if "ui_short" not in st.session_state or "ui_medium" not in st.session_state or "ui_long" not in st.session_state:
         d0 = scenario_defaults(st.session_state.path, int(st.session_state.slots), float(st.session_state.freight_share))
@@ -233,7 +235,6 @@ def reset_all():
     st.session_state.ui_short = d0["short"]
     st.session_state.ui_medium = d0["medium"]
     st.session_state.ui_long = d0["long"]
-    n = len(ss.RUNWAYS)
     st.session_state.runway_shares = normalize_shares({
             "Polderbaan" : 763,
             "Zwanenburgbaan" : 2058,
@@ -242,6 +243,8 @@ def reset_all():
             "Aalsmeerbaan" : 1322,
             "Kaagbaan" : 3110
         }, ss.RUNWAYS)
+    st.session_state["form_version"] += 1
+    st.rerun()
 
 
 def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
