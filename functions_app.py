@@ -163,54 +163,93 @@ def enforce_sum_100_custom():
     st.session_state.ui_long = int(clamp(100 - s - m, 0, 100))
 
 def css():
-    st.markdown(
-        """
-        <style>
-        .kpi-card{
-            background: white;
-            border: 1px solid rgba(49,51,63,0.2);
-            border-radius: 10px;
-            padding: 14px 14px 10px 14px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-            height: 92px;
-        }
-        .kpi-title{
-            font-size: 0.85rem;
-            color: rgba(49,51,63,0.75);
-            margin-bottom: 4px;
-        }
-        .kpi-value{
-            font-size: 1.65rem;
-            font-weight: 650;
-            line-height: 1.05;
-            color: rgba(49,51,63,0.95);
-        }
-        .kpi-sub{
-            margin-top: 6px;
-            font-size: 0.8rem;
-            color: rgba(49,51,63,0.65);
-        }
-        .meta-card{
-            background: white;
-            border: 1px solid rgba(49,51,63,0.2);
-            border-radius: 10px;
-            padding: 14px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-        }
-        .small-mono{
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            color: #C2185B;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+    <style>
+    .kpi-card{
+        position: relative;
+        background: white;
+        border: 1px solid rgba(49,51,63,0.2);
+        border-radius: 10px;
+        padding: 14px 14px 10px 14px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        height: 92px;
+    }
+
+    .kpi-title{
+        font-size: 0.85rem;
+        color: rgba(49,51,63,0.75);
+        margin-bottom: 4px;
+    }
+
+    .kpi-value{
+        font-size: 1.65rem;
+        font-weight: 650;
+        line-height: 1.05;
+        color: rgba(49,51,63,0.95);
+    }
+
+    .kpi-sub{
+        margin-top: 6px;
+        font-size: 0.8rem;
+        color: rgba(49,51,63,0.65);
+    }
+
+    .meta-card{
+        background: white;
+        border: 1px solid rgba(49,51,63,0.2);
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+
+    .small-mono{
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        color: #C2185B;
+    }
+
+    .kpi-info{
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(49,51,63,0.08);
+        color: rgba(49,51,63,0.8);
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: help;
+        z-index: 2;
+    }
+
+    .kpi-info:hover::after{
+        content: attr(data-tooltip);
+        position: absolute;
+        top: 24px;
+        right: 0;
+        width: 220px;
+        background: rgba(49,51,63,0.96);
+        color: white;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 400;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+        white-space: normal;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 
-def kpi_card(title: str, value: str, sub: str = ""):
+def kpi_card(title: str, value: str, sub: str = "", tooltip = "Dit is extra uitleg over deze KPI."):
     st.markdown(
         f"""
         <div class="kpi-card">
+          <div class="kpi-info" data-tooltip="{tooltip}">i</div>
           <div class="kpi-title">{title}</div>
           <div class="kpi-value">{value}</div>
           <div class="kpi-sub">{sub}</div>
