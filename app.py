@@ -156,11 +156,11 @@ with left:
         kpi_card("Belly Cargo volume (M tons)", f"{outputs['total_cargo_belly']:.3f}")
     
     with r3[0]:
-        kpi_card("Netwerkkwaliteit cargo", f"{outputs['netwerk']:,}")
+        kpi_card("Netwerk quality cargo", f"{outputs['netwerk']:,}")
     with r3[1]:
-        kpi_card("Aantal inwoners > 50db", f"{outputs['pop_above50']:,}")
+        kpi_card("Population > 50db", f"{outputs['pop_above50']:,}")
     with r3[2]:
-        kpi_card("Aantal inwoners > 45db", f"{outputs['pop_above45']:,}")
+        kpi_card("Population > 45db", f"{outputs['pop_above45']:,}")
 
 
     st.markdown("")
