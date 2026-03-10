@@ -158,7 +158,7 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
                    slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*ss.haul_dist.loc['long haul pax']['num_passengers'] 
     )
     netwerkbreedte = y = 0.5352 + 0.0000000816 * slots
-    netwerkdiepte = 1076230 * np.sqrt(slots/500000)
+    netwerkdiepte = 1076230 * np.sqrt((total_cargo_freight + total_cargo_belly)/(0.8453 + 0.640))
     netwerkkwaliteit =  int(netwerkbreedte * netwerkdiepte)
 
     return dict(
