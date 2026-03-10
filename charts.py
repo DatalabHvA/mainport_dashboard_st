@@ -79,13 +79,14 @@ def noise_choropleth_fig(gdf: pd.DataFrame, color_col: str = "diff"):
     geojson = json.loads(gdf.to_json())
 
     center, zoom = _bounds_center_zoom(gdf)
-
-    fig = px.choropleth_mapbox(
+    print(gdf.geom_type.value_counts())
+    print(color_col)
+    fig = px.choropleth_map(
         gdf,
         geojson=geojson,
         locations="fid",
         color=color_col,
-        mapbox_style="open-street-map",  # no token required
+        map_style="carto-positron",  # no token required
         center=center,
         zoom=zoom,
         opacity=0.6,

@@ -134,6 +134,8 @@ with left:
     r1 = st.columns(4, gap="small")
     st.markdown("<div style='height: 0.75rem;'></div>", unsafe_allow_html=True)
     r2 = st.columns(4, gap="small")
+    st.markdown("<div style='height: 0.75rem;'></div>", unsafe_allow_html=True)
+    r3 = st.columns(4, gap="small")
 
     with r1[0]:
         kpi_card("Lden lowered > 1dB (# people)", f"{outputs['homes']:,}")
@@ -152,6 +154,14 @@ with left:
         kpi_card("Freight Cargo volume (M tons)", f"{outputs['total_cargo_freight']:.4f}")
     with r2[3]:
         kpi_card("Belly Cargo volume (M tons)", f"{outputs['total_cargo_belly']:.3f}")
+    
+    with r3[0]:
+        kpi_card("Netwerkkwaliteit", f"{outputs['netwerk']:,}")
+    with r3[1]:
+        kpi_card("Aantal inwoners > 50db", f"{outputs['pop_above50']:,}")
+    with r3[2]:
+        kpi_card("Aantal inwoners > 45db", f"{outputs['pop_above45']:,}")
+
 
     st.markdown("")
 

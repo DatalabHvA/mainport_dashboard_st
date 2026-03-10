@@ -134,9 +134,13 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
     # Choropleth path: if NOISE_GDF is provided, create a simulated Lden column responsive to scenario
     if ss.noise_gdf is not None:
         homes_affected = int(ss.noise_gdf.loc[ss.noise_gdf["diff"] < -1]['aantalInwoners'].sum())
+        pop_above50 = int(ss.noise_gdf.loc[ss.noise_gdf["scenario"] > 50]['aantalInwoners'].sum())
+        pop_above45 = int(ss.noise_gdf.loc[ss.noise_gdf["scenario"] > 45]['aantalInwoners'].sum())
     else:
         # Fallback: no polygons; KPI 0 so user knows to load polygons
         homes_affected = 0
+        pop_above55 = 0
+        pop_above45 = 0
 
     va_indirect = total_va_direct * (INDIRECT_MULT-1)
     jobs_indirect = int(total_jobs_direct * (INDIRECT_MULT_JOB-1))
@@ -153,6 +157,10 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
                    slots*((100-freight_pct)*medium_pct/10000)*ss.haul_dist.loc['medium haul pax']['num_passengers'] + 
                    slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*ss.haul_dist.loc['long haul pax']['num_passengers'] 
     )
+    netwerkbreedte = y = 0.5352 + 0.0000000816 * slots
+    netwerkdiepte = 1076230 * np.sqrt(slots/500000)
+    netwerkkwaliteit =  int(netwerkbreedte * netwerkdiepte)
+
     return dict(
         long_pct=long_pct,
         seg=df,
@@ -163,5 +171,8 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
         jobs_indirect=jobs_indirect,
         total_cargo_freight  = total_cargo_freight/1000000,
         total_cargo_belly =  total_cargo_belly/1000000,
-        total_pax = total_pax/1000000
+        total_pax = total_pax/1000000,
+        pop_above45 = pop_above45,
+        pop_above50 = pop_above50,
+        netwerk = netwerkkwaliteit
     )
