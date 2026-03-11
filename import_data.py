@@ -95,7 +95,7 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
         ("Freight", "Long"): ss.haul_dist.loc['long haul cargo']['cargo_volume'],
     }
 
-    INDIRECT_MULT = 1.2
+    INDIRECT_MULT = 1.42
     INDIRECT_MULT_JOB = 1.9 
     slots = int(round(slots or 0)); freight_pct = int(round(freight_pct or 0)); short_pct = int(round(short_pct or 0)); medium_pct = int(round(medium_pct or 0))
     passengers_pct = max(0, 100 - freight_pct)
