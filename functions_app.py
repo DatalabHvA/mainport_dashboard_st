@@ -18,7 +18,7 @@ def ensure_defaults():
         st.session_state.slots = 478_000
 
     if "ui_sound" not in st.session_state:
-        st.session_state.ui_sound = 'diff'
+        st.session_state.ui_sound = 'Lden'
 
     if "freight_share" not in st.session_state:
         st.session_state.freight_share = 5.0
