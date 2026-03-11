@@ -158,7 +158,7 @@ with left:
     with r3[0]:
         kpi_card("Netwerk quality cargo", f"{outputs['netwerk']:,}", tooltip = "Network quailty is the product of network breadth (number of destinations weighed with GaWC score) and network depth (volume/frequency of the connections).")
     with r3[1]:
-        kpi_card("Population > 50db", f"{outputs['pop_above50']:,}",tooltip="This KPI shows the number of people who are highly annoyed by aircraft noise exposure (Lden) - 55dB.")
+        kpi_card("Population > 50db", f"{outputs['pop_above50']:,}",tooltip="This KPI shows the number of people who are highly annoyed by aircraft noise exposure (Lden) - 50dB.")
     with r3[2]:
         kpi_card("Population > 45db", f"{outputs['pop_above45']:,}", tooltip="This KPI shows the number of people whose aircraft noise exposure (Lden) is higher than the WHO guideline of 45dB.")
 
