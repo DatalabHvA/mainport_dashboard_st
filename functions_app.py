@@ -69,6 +69,12 @@ def ensure_defaults():
             "Kaagbaan" : 3110
         }, ss.RUNWAYS)
 
+    if "pinned_kpis" not in ss:
+        ss.pinned_kpis = None  # will be set after first calculate_kpis
+
+    if "pinned_label" not in ss:
+        ss.pinned_label = "Starting situation"
+
     if 'noise_gdf' not in ss:
         ss.noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
         ss.noise_gdf['aantalInwoners'] = np.where(ss.noise_gdf['aantalInwoners'] < 0, 0, ss.noise_gdf['aantalInwoners'])
@@ -172,7 +178,7 @@ def css():
         border-radius: 10px;
         padding: 14px 14px 10px 14px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-        height: 92px;
+        height: 108px;
     }
 
     .kpi-title{
@@ -264,6 +270,42 @@ def kpi_card(title: str, value: str, sub: str = "", tooltip = "Dit is extra uitl
 # - widgets use ui_* keys
 # - we never set widget-bound keys after instantiation in the same run
 # -----------------------------
+
+
+def format_delta(current, pinned, invert=False):
+    """Return HTML snippet showing % change from pinned reference.
+    invert=True means lower is better (e.g. noise population).
+    """
+    if pinned is None:
+        return ""
+    diff = current - pinned
+    if abs(pinned) > 0:
+        pct = (diff / abs(pinned)) * 100
+    else:
+        pct = 0.0 if diff == 0 else 100.0
+
+    if abs(pct) < 0.05:
+        return '<span style="color:#888;font-size:0.78rem;">&#8212; no change</span>'
+
+    is_good = (diff > 0) if not invert else (diff < 0)
+    arrow = "&#9650;" if diff > 0 else "&#9660;"
+    color = "#2ca02c" if is_good else "#d62728"
+    sign = "+" if pct > 0 else ""
+    return f'<span style="color:{color};font-weight:600;font-size:0.78rem;">{arrow} {sign}{pct:.1f}%</span>'
+
+
+def pin_scenario():
+    """Pin the current outputs as the reference for delta comparison."""
+    if "current_outputs" in ss:
+        ss.pinned_kpis = dict(ss.current_outputs)
+        ss.pinned_label = ss.scenario_title or "Pinned scenario"
+
+
+def unpin_scenario():
+    """Reset reference back to starting situation."""
+    if "baseline_kpis" in ss:
+        ss.pinned_kpis = dict(ss.baseline_kpis)
+        ss.pinned_label = "Starting situation"
 
 
 def reset_all():
