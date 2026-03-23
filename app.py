@@ -4,6 +4,7 @@ import re
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from functions_app import * 
 from import_data import calculate_kpis
 from charts import *
@@ -241,17 +242,83 @@ with left:
         st.plotly_chart(fig_emp, width='stretch')
     
     with tab4:
-        fig = px.choropleth(
-        ss.wgi_data, locations="iso3", color="governance_score",
-        color_continuous_scale=["#d62728", "#ffbf00", "#2ca02c"],  # red→yellow→green
-        range_color=(0, 1), projection="natural earth",
-        hover_name="country", hover_data={'iso3':False, "governance_score" : ':.2f'}
-        )
-        fig.update_layout(
-            height=600, margin=dict(l=10, r=10, t=30, b=10),
-            coloraxis_colorbar=dict(title="Stabiliteit")
-        )
-        st.plotly_chart(fig, width='stretch')
+        # Initialise excluded-country set in session state
+        if 'wgi_excluded' not in ss:
+            ss.wgi_excluded = set()
+
+        @st.fragment
+        def wgi_fragment():
+            wgi_data = ss.wgi_data
+
+            if st.button("Reset selection", key="wgi_reset"):
+                ss.wgi_excluded = set()
+                st.rerun(scope="fragment")
+
+            # Split into active and excluded dataframes
+            active = wgi_data[~wgi_data['country'].isin(ss.wgi_excluded)].reset_index(drop=True)
+            excluded_df = wgi_data[wgi_data['country'].isin(ss.wgi_excluded)].reset_index(drop=True)
+
+            # KPI: average governance score of included countries
+            avg_score = active['governance_score'].mean() if len(active) > 0 else 0
+            n_countries = len(active)
+            kpi_card(
+                "Average WGI Score",
+                f"{avg_score:.2f}",
+                sub=f"{n_countries} countries included",
+                tooltip="Average World Governance Indicator score across all included countries (0 = poor, 1 = good). Click a country on the map to exclude or re-include it."
+            )
+
+            # Build figure with two traces: active (coloured) and excluded (grey)
+            fig = go.Figure()
+
+            # Trace 0: active countries
+            fig.add_trace(go.Choropleth(
+                locations=active['iso3'],
+                z=active['governance_score'],
+                text=active['country'],
+                colorscale=[[0, '#d62728'], [0.5, '#ffbf00'], [1, '#2ca02c']],
+                zmin=0, zmax=1,
+                hovertemplate='%{text}<br>Score: %{z:.2f}<extra></extra>',
+                colorbar=dict(title="Stabiliteit"),
+                marker_line_width=0.5,
+            ))
+
+            # Trace 1: excluded countries (grey)
+            if len(excluded_df) > 0:
+                fig.add_trace(go.Choropleth(
+                    locations=excluded_df['iso3'],
+                    z=excluded_df['governance_score'],
+                    text=excluded_df['country'],
+                    colorscale=[[0, '#d3d3d3'], [1, '#d3d3d3']],
+                    zmin=0, zmax=1,
+                    hovertemplate='%{text} (excluded)<br>Score: %{z:.2f}<extra></extra>',
+                    showscale=False,
+                    marker_line_width=0.5,
+                ))
+
+            fig.update_layout(
+                height=600, margin=dict(l=10, r=10, t=30, b=10),
+                geo=dict(projection_type="natural earth"),
+            )
+
+            event = st.plotly_chart(fig, on_select="rerun", key="wgi_chart", selection_mode=["points"])
+
+            # Process map clicks: toggle countries between active ↔ excluded
+            if event and event.selection and len(event.selection.points) > 0:
+                changed = False
+                for point in event.selection.points:
+                    curve = point.get("curve_number", point.get("curveNumber", 0))
+                    idx = point.get("point_number", point.get("pointNumber", point.get("pointIndex", 0)))
+                    if curve == 0 and idx < len(active):
+                        ss.wgi_excluded.add(active.iloc[idx]['country'])
+                        changed = True
+                    elif curve == 1 and idx < len(excluded_df):
+                        ss.wgi_excluded.discard(excluded_df.iloc[idx]['country'])
+                        changed = True
+                if changed:
+                    st.rerun(scope="fragment")
+
+        wgi_fragment()
 
 with right:
 
