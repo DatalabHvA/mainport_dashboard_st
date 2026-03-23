@@ -28,6 +28,7 @@ with st.sidebar:
         step=10_000,
         key="slots",
         on_change=apply_path_defaults_to_ui,  # top input influences defaults lower down
+        bind="query-params",
     )
     
     st.slider(
