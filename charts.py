@@ -41,7 +41,7 @@ def employment_fig(seg: pd.DataFrame):
 def cargo_hist_fig(seg: pd.DataFrame):
     if seg is None or len(seg) == 0:
         return px.bar()
-    fig = px.bar(seg, x="Segment", y="Cargo", title="Cargo capacity by segment (million tons)")
+    fig = px.bar(seg, x="Segment", y="Cargo", title="Cargo volume by segment (million tons)")
     fig.update_layout(
         margin=dict(l=0, r=0, t=20, b=50),
         height=300,

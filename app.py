@@ -225,7 +225,7 @@ with left:
                  tooltip="This KPI represents the total volume of air freight transported as belly cargo, expressed in millions of metric tons per year.",
                  category="general")
     with r1[3]:
-        kpi_card("Netwerk quality cargo capacity", f"{outputs['netwerk']:,}",
+        kpi_card("Netwerk quality cargo", f"{outputs['netwerk']:,}",
                  sub=format_delta(outputs['netwerk'], ref.get('netwerk')),
                  tooltip="Network quality is the product of network breadth (number of destinations weighed with GaWC score) and network depth (volume/frequency of the connections).",
                  category="strategic")
