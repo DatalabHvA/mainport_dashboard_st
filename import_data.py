@@ -8,7 +8,7 @@ ss = st.session_state
 
 def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
 
-    ss.noise_gdf['scenario'] = combine_lden_df_weighted(df = ss.noise_gdf, 
+    ss.noise_gdf['scenario'] = combine_lden_df_weighted(df = ss.noise_gdf,
                                              cols = [
                                                         "Lden_Polderbaan",
                                                         "Lden_Zwanenburgbaan",
@@ -16,15 +16,16 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
                                                         "Lden_Oostbaan",
                                                         "Lden_Aalsmeerbaan",
                                                         "Lden_Kaagbaan",
-                                                    ], 
-                                             weights = [ss.runway_shares['Polderbaan'], 
+                                                    ],
+                                             weights = [ss.runway_shares['Polderbaan'],
                                                         ss.runway_shares['Zwanenburgbaan'],
                                                         ss.runway_shares['Buitenveldertbaan'],
                                                         ss.runway_shares['Oostbaan'],
                                                         ss.runway_shares['Aalsmeerbaan'],
-                                                        ss.runway_shares['Kaagbaan']])
+                                                        ss.runway_shares['Kaagbaan']],
+                                             slots=slots)
     #ss.noise_gdf['scenario'] = ss.noise_gdf['scenario'] + 10*np.log10(ss.slots/478_000)
-    delta_fleetmix = delta_lden_from_haul_mix(0.40*ss.slots,
+    delta_fleetmix = delta_lden_from_haul_mix(0.40*slots,
                                         0.35*slots,
                                         0.25*slots,
                                         short_pct/100 * slots, 
@@ -33,7 +34,9 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
                                         0.2838603921484293, 1.3974990345316523)
     ss.noise_gdf['scenario'] = ss.noise_gdf['scenario'] + delta_fleetmix                                     
 
-    ss.noise_gdf['diff'] = ss.noise_gdf['scenario'] - ss.noise_gdf['normal']
+    # Diff against pinned noise reference if available, otherwise against baseline
+    noise_ref = ss.get('pinned_noise', ss.noise_gdf['normal'])
+    ss.noise_gdf['diff'] = ss.noise_gdf['scenario'] - noise_ref
 
     SEGMENTS = [
         ("Passengers", "Short"), ("Passengers", "Medium"), ("Passengers", "Long"),

@@ -41,7 +41,7 @@ def employment_fig(seg: pd.DataFrame):
 def cargo_hist_fig(seg: pd.DataFrame):
     if seg is None or len(seg) == 0:
         return px.bar()
-    fig = px.bar(seg, x="Segment", y="Cargo", title="Cargo volume by segment (million tons)")
+    fig = px.bar(seg, x="Segment", y="Cargo", title="Cargo capacity by segment (million tons)")
     fig.update_layout(
         margin=dict(l=0, r=0, t=20, b=50),
         height=300,
@@ -120,9 +120,16 @@ def noise_hist_fig(ndf: pd.DataFrame):
     if ndf is None or len(ndf) == 0 or ("diff" not in ndf.columns and "Lden" not in ndf.columns):
         return px.histogram(pd.DataFrame(dict(Lden=[])), x="Lden", nbins=40, title="Distribution of Lden")
     col = "diff" if "diff" in ndf.columns else "Lden"
-    fig = px.histogram(ndf, x=col, nbins=40, title="Distribution of Lden")
+    fig = px.histogram(ndf, x=col, title="Distribution of Lden")
+    fig.update_traces(xbins=dict(size=0.1))
+    data_min, data_max = ndf[col].min(), ndf[col].max()
+    data_center = (data_min + data_max) / 2
+    half_range = max((data_max - data_min) / 2, 0.5)  # at least 1 wide
+    x_min = data_center - half_range - 0.5
+    x_max = data_center + half_range + 0.5
     fig.update_layout(
         margin=dict(l=0, r=0, t=20, b=50),
+        xaxis=dict(range=[x_min, x_max]),
         height=300,
         title_font=dict(
             size=12,

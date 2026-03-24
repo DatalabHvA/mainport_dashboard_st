@@ -7,67 +7,79 @@ import geopandas as gpd
 ss = st.session_state
 
 # -----------------------------
+# Shared default constants (single source of truth)
+# -----------------------------
+DEFAULT_SLOTS = 478_000
+DEFAULT_FREIGHT_SHARE = 5.0
+DEFAULT_PATH = "Hub optimized"
+DEFAULT_RUNWAY_COUNTS = {
+    "Polderbaan": 763,
+    "Zwanenburgbaan": 2058,
+    "Buitenveldertbaan": 1944,
+    "Oostbaan": 467,
+    "Aalsmeerbaan": 1322,
+    "Kaagbaan": 3110,
+}
+DEFAULT_SCENARIO_TITLE = "My Airport Scenario"
+
+# -----------------------------
 # Helpers
 # -----------------------------
 
+def default_runway_shares():
+    """Return normalised default runway shares (single source of truth)."""
+    RUNWAYS = list(DEFAULT_RUNWAY_COUNTS.keys())
+    return normalize_shares(dict(DEFAULT_RUNWAY_COUNTS), RUNWAYS)
+
+
 def ensure_defaults():
     if "scenario_title" not in st.session_state:
-        st.session_state.scenario_title = "My Airport Scenario"
+        st.session_state.scenario_title = DEFAULT_SCENARIO_TITLE
 
     if "slots" not in st.session_state:
-        st.session_state.slots = 478_000
+        st.session_state.slots = DEFAULT_SLOTS
 
     if "ui_sound" not in st.session_state:
         st.session_state.ui_sound = 'Lden'
 
     if "freight_share" not in st.session_state:
-        st.session_state.freight_share = 5.0
+        st.session_state.freight_share = DEFAULT_FREIGHT_SHARE
 
     if "path" not in st.session_state:
-        st.session_state.path = "Hub optimized"
+        st.session_state.path = DEFAULT_PATH
 
-    if 'scenarios' not in ss: 
+    if 'scenarios' not in ss:
         ss.scenarios = pd.read_excel('data/scenarios.xlsx').set_index('scenario')
-    
-    if 'wgi_data' not in ss:
-        ss.wgi_data = pd.read_excel('data/wgi_governance_scores_2023_with_iso3.xlsx')
+
+    if 'cargo_data' not in ss:
+        ss.cargo_data = pd.read_csv('data/combined_country_cargo_per_category.csv')
+        ss.cargo_data['cargo_in'] = ss.cargo_data['Cargo-in full freight (tons)'] + ss.cargo_data['Cargo-in belly (tons)']
+        ss.cargo_data['cargo_out'] = ss.cargo_data['Cargo-out full freight (tons)'] + ss.cargo_data['Cargo-out belly (tons)']
 
     if 'haul_dist' not in ss:
         ss.haul_dist = pd.read_excel('data/haul_distributions.xlsx').set_index('type')
-    
-    if 'econ_fact' not in ss: 
+
+    if 'econ_fact' not in ss:
         ss.econ_fact = pd.read_excel('data/economische_factoren.xlsx').set_index('type')
 
     if 'form_version' not in ss:
         ss.form_version = 0
 
-    # UI haul keys
+    if "RUNWAYS" not in ss:
+        ss.RUNWAYS = list(DEFAULT_RUNWAY_COUNTS.keys())
+
+    if "runway_shares" not in st.session_state:
+        st.session_state.runway_shares = default_runway_shares()
+
+    # UI haul keys – always compute from DEFAULTS on first run so baseline is
+    # independent of any query-param overrides that haven't been applied yet.
     if "ui_short" not in st.session_state or "ui_medium" not in st.session_state or "ui_long" not in st.session_state:
-        d0 = scenario_defaults(st.session_state.path, int(st.session_state.slots), float(st.session_state.freight_share))
+        d0 = scenario_defaults(st.session_state.get("path", DEFAULT_PATH),
+                               int(st.session_state.get("slots", DEFAULT_SLOTS)),
+                               float(st.session_state.get("freight_share", DEFAULT_FREIGHT_SHARE)))
         st.session_state.ui_short = d0["short"]
         st.session_state.ui_medium = d0["medium"]
         st.session_state.ui_long = d0["long"]
-    
-    if "RUNWAYS" not in ss:
-        ss.RUNWAYS  = [
-            "Polderbaan",
-            "Zwanenburgbaan",
-            "Buitenveldertbaan",
-            "Oostbaan",
-            "Aalsmeerbaan",
-            "Kaagbaan",
-        ]
-
-    if "runway_shares" not in st.session_state:
-        # gelijke startverdeling
-        st.session_state.runway_shares = normalize_shares({
-            "Polderbaan" : 763,
-            "Zwanenburgbaan" : 2058,
-            "Buitenveldertbaan" : 1944,
-            "Oostbaan" : 467,
-            "Aalsmeerbaan" : 1322,
-            "Kaagbaan" : 3110
-        }, ss.RUNWAYS)
 
     if "pinned_kpis" not in ss:
         ss.pinned_kpis = None  # will be set after first calculate_kpis
@@ -76,9 +88,10 @@ def ensure_defaults():
         ss.pinned_label = "Starting situation"
 
     if 'noise_gdf' not in ss:
+        default_shares = default_runway_shares()
         ss.noise_gdf = gpd.read_feather('data/geluid_banen.ftr')
         ss.noise_gdf['aantalInwoners'] = np.where(ss.noise_gdf['aantalInwoners'] < 0, 0, ss.noise_gdf['aantalInwoners'])
-        ss.noise_gdf['normal'] = combine_lden_df_weighted(df = ss.noise_gdf, 
+        ss.noise_gdf['normal'] = combine_lden_df_weighted(df = ss.noise_gdf,
                                              cols = [
                                                         "Lden_Polderbaan",
                                                         "Lden_Zwanenburgbaan",
@@ -86,13 +99,14 @@ def ensure_defaults():
                                                         "Lden_Oostbaan",
                                                         "Lden_Aalsmeerbaan",
                                                         "Lden_Kaagbaan",
-                                                    ], 
-                                             weights = [ss.runway_shares['Polderbaan'], 
-                                                        ss.runway_shares['Zwanenburgbaan'],
-                                                        ss.runway_shares['Buitenveldertbaan'],
-                                                        ss.runway_shares['Oostbaan'],
-                                                        ss.runway_shares['Aalsmeerbaan'],
-                                                        ss.runway_shares['Kaagbaan']])
+                                                    ],
+                                             weights = [default_shares['Polderbaan'],
+                                                        default_shares['Zwanenburgbaan'],
+                                                        default_shares['Buitenveldertbaan'],
+                                                        default_shares['Oostbaan'],
+                                                        default_shares['Aalsmeerbaan'],
+                                                        default_shares['Kaagbaan']],
+                                             slots=DEFAULT_SLOTS)
         
 
 def normalize_shares(shares, keys):
@@ -124,21 +138,18 @@ def scenario_defaults(path: str, slots: int, freight_share: float) -> dict:
         scenarios = ss.scenarios
         haul_distributions = ss.haul_dist
 
-        short_slots = (478_000*haul_distributions.loc['short haul pax']['base_slot_frac'] + 
-            max(ss.slots - 478_000,0)*scenarios.loc[path]['short haul increase']/1000 + 
-            max(478_000- ss.slots,0)*scenarios.loc[path]['short haul decrease']/1000) 
-        print('short slots', short_slots)
-        medium_slots = (478_000*haul_distributions.loc['medium haul pax']['base_slot_frac'] + 
-            max(ss.slots - 478_000,0)*scenarios.loc[path]['medium haul increase']/1000 + 
-            max(478_000- ss.slots,0)*scenarios.loc[path]['medium haul decrease']/1000)
-        print('medium slots', medium_slots)
-        long_slots = (478_000*haul_distributions.loc['long haul pax']['base_slot_frac'] + 
-            max(ss.slots - 478_000,0)*scenarios.loc[path]['long haul increase']/1000 + 
-            max(478_000- ss.slots,0)*scenarios.loc[path]['long haul decrease']/1000)
-        print('long slots', long_slots)
-        short = 100*short_slots/ss.slots
-        medium = 100*medium_slots/ss.slots
-        long = 100*long_slots/ss.slots
+        short_slots = (478_000*haul_distributions.loc['short haul pax']['base_slot_frac'] +
+            max(slots - 478_000,0)*scenarios.loc[path]['short haul increase']/1000 +
+            max(478_000- slots,0)*scenarios.loc[path]['short haul decrease']/1000)
+        medium_slots = (478_000*haul_distributions.loc['medium haul pax']['base_slot_frac'] +
+            max(slots - 478_000,0)*scenarios.loc[path]['medium haul increase']/1000 +
+            max(478_000- slots,0)*scenarios.loc[path]['medium haul decrease']/1000)
+        long_slots = (478_000*haul_distributions.loc['long haul pax']['base_slot_frac'] +
+            max(slots - 478_000,0)*scenarios.loc[path]['long haul increase']/1000 +
+            max(478_000- slots,0)*scenarios.loc[path]['long haul decrease']/1000)
+        short = 100*short_slots/slots
+        medium = 100*medium_slots/slots
+        long = 100*long_slots/slots
 
     else:  # Custom (won't be used for locking; we keep current UI)
         short = st.session_state.get("ui_short", 40)
@@ -178,13 +189,14 @@ def css():
         border-radius: 10px;
         padding: 14px 14px 10px 14px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-        height: 108px;
+        min-height: 108px;
     }
 
     .kpi-title{
-        font-size: 0.85rem;
+        font-size: 0.78rem;
         color: rgba(49,51,63,0.75);
         margin-bottom: 4px;
+        line-height: 1.25;
     }
 
     .kpi-value{
@@ -247,14 +259,75 @@ def css():
         box-shadow: 0 4px 14px rgba(0,0,0,0.18);
         white-space: normal;
     }
+    /* --- coloured expanders ------------------------------------------------ */
+    div[data-testid="stExpander"] {
+        border: none;
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    div[data-testid="stExpander"] details {
+        border: none !important;
+        border-radius: 10px;
+    }
+    div[data-testid="stExpander"] summary {
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 10px 14px;
+        border-radius: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 
-def kpi_card(title: str, value: str, sub: str = "", tooltip = "Dit is extra uitleg over deze KPI."):
+def color_expanders():
+    """Inject JS that colours expanders based on their label text."""
+    st.markdown("""
+    <script>
+    const COLORS = {
+        'General':            '#e8f0fe',
+        'Economy':            '#e6f4ea',
+        'Environment':        '#fef7e0',
+        'Strategic Autonomy': '#f3e8fd',
+        'Connectivity':       '#e0f2f1',
+        'Broad Prosperity':   '#fce4ec',
+    };
+    function paintExpanders() {
+        document.querySelectorAll('[data-testid="stExpander"]').forEach(el => {
+            const summary = el.querySelector('summary span');
+            if (!summary) return;
+            const label = summary.textContent.trim();
+            if (COLORS[label]) {
+                const details = el.querySelector('details');
+                if (details) details.style.background = COLORS[label];
+            }
+        });
+    }
+    // run after DOM settles
+    setTimeout(paintExpanders, 200);
+    new MutationObserver(paintExpanders)
+        .observe(document.body, {childList: true, subtree: true});
+    </script>
+    """, unsafe_allow_html=True)
+
+
+CAT_COLORS = {
+    "general":   "#4285F4",   # blue
+    "economy":   "#34A853",   # green
+    "environment": "#F9AB00", # amber
+    "strategic": "#9334E6",   # purple
+    "connectivity": "#00897B",# teal
+    "prosperity": "#E91E63",  # rose
+}
+
+def kpi_card(title: str, value: str, sub: str = "", tooltip = "Dit is extra uitleg over deze KPI.", category: str = ""):
+    border_style = ""
+    if category and category in CAT_COLORS:
+        c = CAT_COLORS[category]
+        border_style = f"border-left: 4px solid {c};"
     st.markdown(
         f"""
-        <div class="kpi-card">
+        <div class="kpi-card" style="{border_style}">
           <div class="kpi-info" data-tooltip="{tooltip}">i</div>
           <div class="kpi-title">{title}</div>
           <div class="kpi-value">{value}</div>
@@ -270,6 +343,20 @@ def kpi_card(title: str, value: str, sub: str = "", tooltip = "Dit is extra uitl
 # - widgets use ui_* keys
 # - we never set widget-bound keys after instantiation in the same run
 # -----------------------------
+
+
+def fmt_readable(value, prefix="", suffix=""):
+    """Format a large number to a readable string like 1.2M or 345K."""
+    abs_val = abs(value)
+    if abs_val >= 1_000_000_000:
+        s = f"{value / 1_000_000_000:,.1f}B"
+    elif abs_val >= 1_000_000:
+        s = f"{value / 1_000_000:,.1f}M"
+    elif abs_val >= 1_000:
+        s = f"{value / 1_000:,.1f}K"
+    else:
+        s = f"{value:,.0f}"
+    return f"{prefix}{s}{suffix}"
 
 
 def format_delta(current, pinned, invert=False):
@@ -299,6 +386,9 @@ def pin_scenario():
     if "current_outputs" in ss:
         ss.pinned_kpis = dict(ss.current_outputs)
         ss.pinned_label = ss.scenario_title or "Pinned scenario"
+    # Pin current noise scenario as reference for diff
+    if "noise_gdf" in ss and "scenario" in ss.noise_gdf.columns:
+        ss.pinned_noise = ss.noise_gdf['scenario'].copy()
 
 
 def unpin_scenario():
@@ -306,39 +396,39 @@ def unpin_scenario():
     if "baseline_kpis" in ss:
         ss.pinned_kpis = dict(ss.baseline_kpis)
         ss.pinned_label = "Starting situation"
+    # Reset noise reference back to baseline
+    if "baseline_noise" in ss:
+        ss.pinned_noise = ss.baseline_noise.copy()
 
 
 def reset_all():
-    st.session_state.scenario_title = "My Airport Scenario"
-    st.session_state.slots = 478_000
-    st.session_state.freight_share = 5.0
-    st.session_state.path = "Hub optimized"
-    d0 = scenario_defaults("Hub optimized", 478_000, 5.0)
+    st.session_state.scenario_title = DEFAULT_SCENARIO_TITLE
+    st.session_state.slots = DEFAULT_SLOTS
+    st.session_state.freight_share = DEFAULT_FREIGHT_SHARE
+    st.session_state.path = DEFAULT_PATH
+    d0 = scenario_defaults(DEFAULT_PATH, DEFAULT_SLOTS, DEFAULT_FREIGHT_SHARE)
     st.session_state.ui_short = d0["short"]
     st.session_state.ui_medium = d0["medium"]
     st.session_state.ui_long = d0["long"]
-    st.session_state.runway_shares = normalize_shares({
-            "Polderbaan" : 763,
-            "Zwanenburgbaan" : 2058,
-            "Buitenveldertbaan" : 1944,
-            "Oostbaan" : 467,
-            "Aalsmeerbaan" : 1322,
-            "Kaagbaan" : 3110
-        }, ss.RUNWAYS)
+    st.session_state.runway_shares = default_runway_shares()
     st.session_state["form_version"] += 1
-    #st.rerun()
+    # Reset cargo tab excluded countries
+    if "wgi_excluded" in st.session_state:
+        st.session_state.wgi_excluded = set()
 
 
-def combine_lden_df_weighted(df, cols, weights, normalize_weights=True):
+def combine_lden_df_weighted(df, cols, weights, normalize_weights=True, slots=None):
+    if slots is None:
+        slots = ss.slots
     w = np.asarray(weights, dtype=float)
     if normalize_weights:
         w = w / w.sum()
-    
+
     print(w)
 
     reference = [763, 2058, 1944, 467, 1322, 3110]
 
-    w = [(sum([763, 2058, 1944, 467, 1322, 3110])/478_000)*weight*ss.slots/reference[i] for i, weight in enumerate(w)]
+    w = [(sum([763, 2058, 1944, 467, 1322, 3110])/478_000)*weight*slots/reference[i] for i, weight in enumerate(w)]
 
     print(w)
 
