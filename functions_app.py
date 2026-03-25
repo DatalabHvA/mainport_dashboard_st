@@ -259,6 +259,21 @@ def css():
         box-shadow: 0 4px 14px rgba(0,0,0,0.18);
         white-space: normal;
     }
+    /* --- coloured tabs ----------------------------------------------------- */
+    div[data-testid="stTabs"] button[data-baseweb="tab"]:nth-of-type(1) {
+        border-left: 4px solid #F9AB00 !important;
+        padding-left: 10px;
+    }
+    div[data-testid="stTabs"] button[data-baseweb="tab"]:nth-of-type(2),
+    div[data-testid="stTabs"] button[data-baseweb="tab"]:nth-of-type(3) {
+        border-left: 4px solid #34A853 !important;
+        padding-left: 10px;
+    }
+    div[data-testid="stTabs"] button[data-baseweb="tab"]:nth-of-type(4) {
+        border-left: 4px solid #9334E6 !important;
+        padding-left: 10px;
+    }
+
     /* --- coloured expanders ------------------------------------------------ */
     div[data-testid="stExpander"] {
         border: none;
@@ -281,7 +296,7 @@ def css():
 
 
 def color_expanders():
-    """Inject JS that colours expanders based on their label text."""
+    """Inject JS that colours expanders and tabs based on their label text."""
     st.markdown("""
     <script>
     const COLORS = {
@@ -303,7 +318,6 @@ def color_expanders():
             }
         });
     }
-    // run after DOM settles
     setTimeout(paintExpanders, 200);
     new MutationObserver(paintExpanders)
         .observe(document.body, {childList: true, subtree: true});
@@ -386,6 +400,9 @@ def pin_scenario():
     if "current_outputs" in ss:
         ss.pinned_kpis = dict(ss.current_outputs)
         ss.pinned_label = ss.scenario_title or "Pinned scenario"
+    # Pin current slots and freight share for cargo tab reference
+    ss.pinned_slots = int(ss.slots)
+    ss.pinned_freight_share = float(ss.freight_share)
     # Pin current noise scenario as reference for diff
     if "noise_gdf" in ss and "scenario" in ss.noise_gdf.columns:
         ss.pinned_noise = ss.noise_gdf['scenario'].copy()
@@ -396,6 +413,9 @@ def unpin_scenario():
     if "baseline_kpis" in ss:
         ss.pinned_kpis = dict(ss.baseline_kpis)
         ss.pinned_label = "Starting situation"
+    # Reset cargo tab reference to defaults
+    ss.pinned_slots = DEFAULT_SLOTS
+    ss.pinned_freight_share = DEFAULT_FREIGHT_SHARE
     # Reset noise reference back to baseline
     if "baseline_noise" in ss:
         ss.pinned_noise = ss.baseline_noise.copy()

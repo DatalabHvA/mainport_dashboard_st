@@ -437,59 +437,40 @@ with left:
             ss.current_outputs['cargo_belly_in'] = adj_belly_in
             ss.current_outputs['cargo_belly_out'] = adj_belly_out
 
-            # Compute per-category baseline (default slots, all countries)
-            # Each category gets its own reference so switching category shows "no change"
-            cat_key = selected_cat  # e.g. "Pharma", "Totaal"
-            baseline_key = f'cargo_baseline_{cat_key}'
-            if baseline_key not in ss:
-                if cat_prefix is not None:
-                    frac_in_base = df[f'{cat_prefix}_fraction_in']
-                    frac_out_base = df[f'{cat_prefix}_fraction_out']
-                    eur_in_base = df[f'{cat_prefix}_eur_per_ton_in']
-                    eur_out_base = df[f'{cat_prefix}_eur_per_ton_out']
-                    freight_in_tons = df['Cargo-in full freight (tons)'] * frac_in_base
-                    freight_out_tons = df['Cargo-out full freight (tons)'] * frac_out_base
-                    belly_in_tons = df['Cargo-in belly (tons)'] * frac_in_base
-                    belly_out_tons = df['Cargo-out belly (tons)'] * frac_out_base
-                    ss[baseline_key] = {
-                        'cargo_freight_in': freight_in_tons.sum(),
-                        'cargo_freight_out': freight_out_tons.sum(),
-                        'cargo_belly_in': belly_in_tons.sum(),
-                        'cargo_belly_out': belly_out_tons.sum(),
-                        'eur_freight_in': (freight_in_tons * eur_in_base).sum(),
-                        'eur_freight_out': (freight_out_tons * eur_out_base).sum(),
-                        'eur_belly_in': (belly_in_tons * eur_in_base).sum(),
-                        'eur_belly_out': (belly_out_tons * eur_out_base).sum(),
-                    }
-                else:
-                    all_prefixes = [v for v in CARGO_CATEGORIES.values() if v is not None]
-                    eur_in_base = sum(df[f'{p}_fraction_in'] * df[f'{p}_eur_per_ton_in'] for p in all_prefixes)
-                    eur_out_base = sum(df[f'{p}_fraction_out'] * df[f'{p}_eur_per_ton_out'] for p in all_prefixes)
-                    ss[baseline_key] = {
-                        'cargo_freight_in': df['Cargo-in full freight (tons)'].sum(),
-                        'cargo_freight_out': df['Cargo-out full freight (tons)'].sum(),
-                        'cargo_belly_in': df['Cargo-in belly (tons)'].sum(),
-                        'cargo_belly_out': df['Cargo-out belly (tons)'].sum(),
-                        'eur_freight_in': (df['Cargo-in full freight (tons)'] * eur_in_base).sum(),
-                        'eur_freight_out': (df['Cargo-out full freight (tons)'] * eur_out_base).sum(),
-                        'eur_belly_in': (df['Cargo-in belly (tons)'] * eur_in_base).sum(),
-                        'eur_belly_out': (df['Cargo-out belly (tons)'] * eur_out_base).sum(),
-                    }
+            # Compute reference dynamically using pinned slots/freight_share
+            ref_slots = int(ss.get('pinned_slots', DEFAULT_SLOTS))
+            ref_freight_pct = float(ss.get('pinned_freight_share', DEFAULT_FREIGHT_SHARE))
+            ref_freight_scale = (ref_slots * ref_freight_pct / 100) / (478_000 * DEFAULT_FREIGHT_SHARE / 100)
+            ref_belly_scale = (ref_slots * (100 - ref_freight_pct) / 100) / (478_000 * (100 - DEFAULT_FREIGHT_SHARE) / 100)
 
-            # On first run, also seed the generic pinned/baseline for backwards compat
-            if 'cargo_freight_in' not in ss.pinned_kpis:
-                base_cargo = {
-                    'cargo_freight_in': df['Cargo-in full freight (tons)'].sum(),
-                    'cargo_freight_out': df['Cargo-out full freight (tons)'].sum(),
-                    'cargo_belly_in': df['Cargo-in belly (tons)'].sum(),
-                    'cargo_belly_out': df['Cargo-out belly (tons)'].sum(),
-                }
-                for k, v in base_cargo.items():
-                    ss.pinned_kpis[k] = v
-                    ss.baseline_kpis[k] = v
+            if cat_prefix is not None:
+                frac_in_ref = df[f'{cat_prefix}_fraction_in']
+                frac_out_ref = df[f'{cat_prefix}_fraction_out']
+                eur_in_ref = df[f'{cat_prefix}_eur_per_ton_in']
+                eur_out_ref = df[f'{cat_prefix}_eur_per_ton_out']
+                ref_fi = df['Cargo-in full freight (tons)'] * frac_in_ref * ref_freight_scale
+                ref_fo = df['Cargo-out full freight (tons)'] * frac_out_ref * ref_freight_scale
+                ref_bi = df['Cargo-in belly (tons)'] * frac_in_ref * ref_belly_scale
+                ref_bo = df['Cargo-out belly (tons)'] * frac_out_ref * ref_belly_scale
+            else:
+                all_prefixes = [v for v in CARGO_CATEGORIES.values() if v is not None]
+                eur_in_ref = sum(df[f'{p}_fraction_in'] * df[f'{p}_eur_per_ton_in'] for p in all_prefixes)
+                eur_out_ref = sum(df[f'{p}_fraction_out'] * df[f'{p}_eur_per_ton_out'] for p in all_prefixes)
+                ref_fi = df['Cargo-in full freight (tons)'] * ref_freight_scale
+                ref_fo = df['Cargo-out full freight (tons)'] * ref_freight_scale
+                ref_bi = df['Cargo-in belly (tons)'] * ref_belly_scale
+                ref_bo = df['Cargo-out belly (tons)'] * ref_belly_scale
 
-            # Use category-specific baseline as reference for delta computation
-            cat_ref = ss[baseline_key]
+            cat_ref = {
+                'cargo_freight_in': ref_fi.sum(),
+                'cargo_freight_out': ref_fo.sum(),
+                'cargo_belly_in': ref_bi.sum(),
+                'cargo_belly_out': ref_bo.sum(),
+                'eur_freight_in': (ref_fi * eur_in_ref).sum(),
+                'eur_freight_out': (ref_fo * eur_out_ref).sum(),
+                'eur_belly_in': (ref_bi * eur_in_ref).sum(),
+                'eur_belly_out': (ref_bo * eur_out_ref).sum(),
+            }
             cat_label = selected_cat
 
             # KPIs: freight and belly, in and out (delta vs category baseline)
@@ -499,28 +480,32 @@ with left:
                     f"Freight capacity in – {cat_label}",
                     fmt_readable(adj_freight_in, suffix=" t"),
                     sub=format_delta(adj_freight_in, cat_ref['cargo_freight_in']),
-                    tooltip=f"Incoming full-freight cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Incoming full-freight cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
             with kpi_cols[1]:
                 kpi_card(
                     f"Freight capacity out – {cat_label}",
                     fmt_readable(adj_freight_out, suffix=" t"),
                     sub=format_delta(adj_freight_out, cat_ref['cargo_freight_out']),
-                    tooltip=f"Outgoing full-freight cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Outgoing full-freight cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
             with kpi_cols[2]:
                 kpi_card(
                     f"Belly capacity in – {cat_label}",
                     fmt_readable(adj_belly_in, suffix=" t"),
                     sub=format_delta(adj_belly_in, cat_ref['cargo_belly_in']),
-                    tooltip=f"Incoming belly cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Incoming belly cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
             with kpi_cols[3]:
                 kpi_card(
                     f"Belly capacity out – {cat_label}",
                     fmt_readable(adj_belly_out, suffix=" t"),
                     sub=format_delta(adj_belly_out, cat_ref['cargo_belly_out']),
-                    tooltip=f"Outgoing belly cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Outgoing belly cargo capacity in tons. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
 
             # Euro value KPIs
@@ -531,28 +516,32 @@ with left:
                     f"Freight value in – {cat_label}",
                     fmt_readable(adj_eur_freight_in, prefix="€"),
                     sub=format_delta(adj_eur_freight_in, cat_ref.get('eur_freight_in')),
-                    tooltip=f"Value of incoming full-freight cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Value of incoming full-freight cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
             with eur_cols[1]:
                 kpi_card(
                     f"Freight value out – {cat_label}",
                     fmt_readable(adj_eur_freight_out, prefix="€"),
                     sub=format_delta(adj_eur_freight_out, cat_ref.get('eur_freight_out')),
-                    tooltip=f"Value of outgoing full-freight cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Value of outgoing full-freight cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
             with eur_cols[2]:
                 kpi_card(
                     f"Belly value in – {cat_label}",
                     fmt_readable(adj_eur_belly_in, prefix="€"),
                     sub=format_delta(adj_eur_belly_in, cat_ref.get('eur_belly_in')),
-                    tooltip=f"Value of incoming belly cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Value of incoming belly cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
             with eur_cols[3]:
                 kpi_card(
                     f"Belly value out – {cat_label}",
                     fmt_readable(adj_eur_belly_out, prefix="€"),
                     sub=format_delta(adj_eur_belly_out, cat_ref.get('eur_belly_out')),
-                    tooltip=f"Value of outgoing belly cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}"
+                    tooltip=f"Value of outgoing belly cargo. {CARGO_CAT_DESCRIPTIONS.get(selected_cat, '')}",
+                    category="strategic"
                 )
 
             # Build figure: colour by total cargo (in + out)

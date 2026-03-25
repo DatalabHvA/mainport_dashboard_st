@@ -142,7 +142,7 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
     else:
         # Fallback: no polygons; KPI 0 so user knows to load polygons
         homes_affected = 0
-        pop_above55 = 0
+        pop_above50 = 0
         pop_above45 = 0
 
     va_indirect = total_va_direct * (INDIRECT_MULT-1)
