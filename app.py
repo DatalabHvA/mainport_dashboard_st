@@ -401,24 +401,13 @@ with left:
             active = scaled[~scaled['country'].isin(ss.wgi_excluded)].reset_index(drop=True)
             excluded_df = scaled[scaled['country'].isin(ss.wgi_excluded)].reset_index(drop=True)
 
-            # Redistribute excluded flights proportionally to remaining countries
-            # Freight and belly are redistributed independently using their own flight counts
-            if len(active) > 0 and len(excluded_df) > 0:
-                def _scale(col_flights, col_cargo, direction_scaled):
-                    active_flights = active[col_flights].sum()
-                    total_flights = scaled[col_flights].sum()
-                    s = total_flights / active_flights if active_flights > 0 else 1
-                    return (active[col_cargo] * s).sum()
+            # Excluded flights are removed (not redistributed)
+            # Compute available slots freed by excluded countries
+            total_movements = scaled['Arrivals total'].sum() + scaled['Departures total'].sum()
+            excluded_movements = excluded_df['Arrivals total'].sum() + excluded_df['Departures total'].sum() if len(excluded_df) > 0 else 0
+            available_slots = int(round(excluded_movements / 2))
 
-                adj_freight_in = _scale('Arrivals full-freight', 'Cargo-in full freight (tons)', scaled)
-                adj_freight_out = _scale('Departures full-freight', 'Cargo-out full freight (tons)', scaled)
-                adj_belly_in = _scale('Arrivals belly', 'Cargo-in belly (tons)', scaled)
-                adj_belly_out = _scale('Departures belly', 'Cargo-out belly (tons)', scaled)
-                adj_eur_freight_in = _scale('Arrivals full-freight', 'eur_freight_in', scaled)
-                adj_eur_freight_out = _scale('Departures full-freight', 'eur_freight_out', scaled)
-                adj_eur_belly_in = _scale('Arrivals belly', 'eur_belly_in', scaled)
-                adj_eur_belly_out = _scale('Departures belly', 'eur_belly_out', scaled)
-            elif len(active) > 0:
+            if len(active) > 0:
                 adj_freight_in = active['Cargo-in full freight (tons)'].sum()
                 adj_freight_out = active['Cargo-out full freight (tons)'].sum()
                 adj_belly_in = active['Cargo-in belly (tons)'].sum()
@@ -472,6 +461,19 @@ with left:
                 'eur_belly_out': (ref_bo * eur_out_ref).sum(),
             }
             cat_label = selected_cat
+
+            # Available slots KPI (only shown when countries are excluded)
+            if available_slots > 0:
+                avail_cols = st.columns([1, 3], gap="small")
+                with avail_cols[0]:
+                    kpi_card(
+                        "Available slots",
+                        f"{available_slots:,}",
+                        sub=f"from {len(ss.wgi_excluded)} excluded countries",
+                        tooltip="Flight movements freed up by excluding countries. These slots are available for reallocation.",
+                        category="strategic"
+                    )
+                st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
 
             # KPIs: freight and belly, in and out (delta vs category baseline)
             kpi_cols = st.columns(4, gap="small")
