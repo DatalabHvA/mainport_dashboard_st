@@ -225,9 +225,11 @@ with left:
                  tooltip="This KPI represents the total volume of air freight transported as belly cargo, expressed in millions of metric tons per year.",
                  category="general")
     with r1[3]:
-        kpi_card("Netwerk quality cargo", f"{outputs['netwerk']:,}",
-                 sub=format_delta(outputs['netwerk'], ref.get('netwerk')),
-                 tooltip="Network quality is the product of network breadth (number of destinations weighed with GaWC score) and network depth (volume/frequency of the connections).",
+        netwerk = int(outputs['netwerkbreedte'] * outputs['netwerkdiepte'])
+        ref_netwerk = int(ref.get('netwerkbreedte', 0) * ref.get('netwerkdiepte', 0)) if ref.get('netwerkbreedte') else None
+        kpi_card("Netwerk quality cargo", f"{netwerk:,}",
+                 sub=format_delta(netwerk, ref_netwerk),
+                 tooltip="Network quality is the product of network breadth (number of destinations weighed with GaWC score) and network depth (volume/frequency of the connections). Reference numbers are DXB: 500k, LHR: 280k, FRA: 185k, IST: 170k, CDG: 160k, ZRH: 70k, BRU: 40k and DUS: 3k.",
                  category="strategic")
 
     # Row 2: Economy (green) × 4
@@ -462,10 +464,38 @@ with left:
             }
             cat_label = selected_cat
 
-            # Available slots KPI (only shown when countries are excluded)
+            # Network quality KPI based on active countries
+            # Use fraction of OAG cargo retained (active/total) applied to model cargo
+            # This guarantees exact match with main page when no countries are excluded
+            total_oag_freight = scaled['Cargo-in full freight (tons)'].sum() + scaled['Cargo-out full freight (tons)'].sum()
+            total_oag_belly = scaled['Cargo-in belly (tons)'].sum() + scaled['Cargo-out belly (tons)'].sum()
+            frac_freight = (adj_freight_in + adj_freight_out) / total_oag_freight if total_oag_freight > 0 else 1.0
+            frac_belly = (adj_belly_in + adj_belly_out) / total_oag_belly if total_oag_belly > 0 else 1.0
+            # Model cargo from calculate_kpis (M tons)
+            model_freight_M = ss.current_outputs.get('total_cargo_freight', 0)
+            model_belly_M = ss.current_outputs.get('total_cargo_belly', 0)
+            adj_cargo_M = max(0, model_freight_M * frac_freight + model_belly_M * frac_belly)
+            cargo_nb = ss.current_outputs.get('netwerkbreedte', 0.378)
+            cargo_nd = 274442 * np.sqrt(adj_cargo_M) + 31513
+            cargo_nwk = int(cargo_nb * cargo_nd)
+            # Reference: main page pinned NWK (all countries, pinned scenario)
+            ref_nwk = int(ss.pinned_kpis.get('netwerkbreedte', 0) * ss.pinned_kpis.get('netwerkdiepte', 0)) if ss.pinned_kpis and ss.pinned_kpis.get('netwerkbreedte') else None
+
+            # Top row: network quality + available slots (if countries excluded)
             if available_slots > 0:
-                avail_cols = st.columns([1, 3], gap="small")
-                with avail_cols[0]:
+                top_cols = st.columns([1, 1, 2], gap="small")
+            else:
+                top_cols = st.columns([1, 3], gap="small")
+            with top_cols[0]:
+                kpi_card(
+                    "Network quality cargo",
+                    f"{cargo_nwk:,}",
+                    sub=format_delta(cargo_nwk, ref_nwk),
+                    tooltip="Network quality is the product of network breadth and network depth (Σ√cargo×GaWC). Adjusted for excluded countries. Reference: DXB 500k, LHR 280k, FRA 185k, IST 170k, CDG 160k.",
+                    category="strategic"
+                )
+            if available_slots > 0:
+                with top_cols[1]:
                     kpi_card(
                         "Available slots",
                         f"{available_slots:,}",
@@ -473,7 +503,7 @@ with left:
                         tooltip="Flight movements freed up by excluding countries. These slots are available for reallocation.",
                         category="strategic"
                     )
-                st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
 
             # KPIs: freight and belly, in and out (delta vs category baseline)
             kpi_cols = st.columns(4, gap="small")

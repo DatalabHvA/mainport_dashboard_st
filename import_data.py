@@ -160,9 +160,17 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
                    slots*((100-freight_pct)*medium_pct/10000)*ss.haul_dist.loc['medium haul pax']['num_passengers'] + 
                    slots*((100-freight_pct)*(100-(short_pct+medium_pct))/10000)*ss.haul_dist.loc['long haul pax']['num_passengers'] 
     )
-    netwerkbreedte = y = 0.5352 + 0.0000000816 * slots
-    netwerkdiepte = 1076230 * np.sqrt(((total_cargo_freight/1000000) + (total_cargo_belly/1000000))/(0.8453 + 0.640))
-    netwerkkwaliteit =  int(netwerkbreedte * netwerkdiepte)
+    # Netwerkkwaliteit cargo, gefit op OAG stad-niveau data + GaWC 2020 scores,
+    # gekalibreerd op SEO (nov 2023): NB≈0.39, ND≈350k, NWK≈140k
+    # Gefit over 264 scenario's (slots 200k-750k, freight 2%-24%), R²=0.988
+    # OAG coeff (111490) gecorrigeerd met √(OAG/model cargo ratio) ≈ √6.06 = 2.46
+    # zodat formule werkt met model-cargo (werkelijke tonnage) i.p.v. OAG-capaciteit
+    total_cargo_M = (total_cargo_freight + total_cargo_belly) / 1000000
+    #
+    # NB ≈ 355/900 ≈ 0.39 bij baseline; nauwelijks afhankelijk van slots in bereik
+    netwerkbreedte = 0.000007 * np.sqrt(slots) + 0.373519
+    # ND = Σ√(cargo_i)×GaWC_i ≈ 274442×√(model_cargo_M) + 31513
+    netwerkdiepte = 274442 * np.sqrt(total_cargo_M) + 31513
 
     return dict(
         long_pct=long_pct,
@@ -177,5 +185,6 @@ def calculate_kpis(slots, freight_pct, short_pct, medium_pct, long_pct):
         total_pax = total_pax/1000000,
         pop_above45 = pop_above45,
         pop_above50 = pop_above50,
-        netwerk = netwerkkwaliteit
+        netwerkbreedte = netwerkbreedte,
+        netwerkdiepte = netwerkdiepte,
     )
